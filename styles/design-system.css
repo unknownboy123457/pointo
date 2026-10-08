@@ -1,0 +1,232 @@
+/* ============================================
+   LRD PointCalc — Design System
+   White & Golden on Dark
+   ============================================ */
+
+:root {
+  /* Background */
+  --bg-primary: #09090d;
+  --bg-secondary: #0e0e14;
+  --bg-card: #141419;
+  --bg-card-elevated: #1a1a22;
+  --bg-input: #1c1c26;
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Gold Accent Palette */
+  --gold-50: #fdf8eb;
+  --gold-100: #f7ebc5;
+  --gold-200: #f0d68a;
+  --gold-300: #e8c255;
+  --gold-400: #d4a84b;
+  --gold-500: #c49a3a;
+  --gold-600: #a47e2a;
+  --gold-700: #7d5f1e;
+  --gold-800: #574214;
+  --gold-900: #33260b;
+
+  /* Accent */
+  --accent: #d4a84b;
+  --accent-soft: #c49a3a;
+  --accent-light: #f0d68a;
+  --accent-muted: rgba(212, 168, 75, 0.12);
+  --accent-border: rgba(212, 168, 75, 0.22);
+  --accent-glow: rgba(212, 168, 75, 0.08);
+
+  /* Gradients */
+  --gradient-hero: linear-gradient(180deg, #1a1610 0%, #111010 50%, transparent 100%);
+  --gradient-card: linear-gradient(135deg, rgba(212, 168, 75, 0.05) 0%, rgba(20, 20, 25, 0.95) 100%);
+  --gradient-profile: linear-gradient(180deg, #1a1710 0%, #141419 100%);
+  --gradient-fab: linear-gradient(135deg, #c49a3a 0%, #d4a84b 50%, #e8c255 100%);
+  --gradient-badge: linear-gradient(135deg, #d4a84b, #c49a3a);
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0b0;
+  --text-muted: #5c5c6e;
+  --text-accent: #f0d68a;
+
+  /* Danger */
+  --danger: #e05c6b;
+  --danger-bg: rgba(224, 92, 107, 0.1);
+  --danger-border: rgba(224, 92, 107, 0.18);
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-card: rgba(212, 168, 75, 0.14);
+  --border-input: rgba(255, 255, 255, 0.12);
+  --border-input-focus: rgba(212, 168, 75, 0.5);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 16px rgba(0, 0, 0, 0.35);
+  --shadow-fab: 0 4px 24px rgba(212, 168, 75, 0.3);
+  --shadow-nav: 0 -2px 20px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 -8px 40px rgba(0, 0, 0, 0.6);
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Typography */
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-script: 'Dancing Script', cursive;
+
+  --fs-xs: 0.6875rem;
+  --fs-sm: 0.75rem;
+  --fs-base: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: 1.625rem;
+  --fs-3xl: 2rem;
+
+  /* Transitions */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast: 150ms var(--ease-out);
+  --transition-normal: 250ms var(--ease-out);
+  --transition-slow: 400ms var(--ease-out);
+
+  /* Layout */
+  --nav-height: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ----- Reset & Base ----- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+a { color: inherit; text-decoration: none; }
+img { display: block; max-width: 100%; }
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ----- Utility ----- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); border: 0;
+}
+
+/* ----- App Shell ----- */
+.app-shell {
+  position: fixed;
+  inset: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  overflow: hidden;
+}
+
+/* ----- Screen ----- */
+.screen {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  bottom: var(--nav-height);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
+  will-change: opacity;
+}
+.screen.active { opacity: 1; visibility: visible; }
+
+.screen-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.bottom-spacer { height: 100px; }
+
+.script-title {
+  font-family: var(--font-script);
+  font-weight: 700;
+  font-size: var(--fs-2xl);
+  color: var(--text-primary);
+}
+
+.section-label {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--accent);
+  padding: var(--space-lg) var(--space-lg) var(--space-sm);
+}
+
+.page-header {
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
+  text-align: center;
+}
+
+/* ----- Keyframes ----- */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}

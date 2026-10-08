@@ -1,0 +1,15 @@
+{
+  "name": "lrd-pointcalc",
+  "version": "1.0.0",
+  "description": "LRD PointCalc — Esports Tournament Points Calculator",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "free-fire",
+    "esports",
+    "pointcalc",
+    "tournament"
+  ]
+}

@@ -1,0 +1,801 @@
+/* ============================================================
+   LRD PointCalc — AI Wizard & Premium Tournament Creation
+   Premium multi-step wizard for AI slot list extraction
+   ============================================================ */
+
+/* =============================================
+   WIZARD OVERLAY & CONTAINER
+   ============================================= */
+.wizard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s var(--ease-out), visibility 0.35s var(--ease-out);
+}
+
+.wizard-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.wizard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 10px;
+  flex-shrink: 0;
+}
+
+.wizard-header__back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 6px 4px;
+  transition: color var(--transition-fast);
+}
+
+.wizard-header__back:hover {
+  color: var(--gold-300);
+}
+
+.wizard-header__title {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--gold-300);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.wizard-header__close {
+  color: var(--text-muted);
+  padding: 6px;
+  transition: color var(--transition-fast);
+}
+
+.wizard-header__close:hover {
+  color: var(--danger);
+}
+
+/* =============================================
+   STEP INDICATOR (Progress Dots)
+   ============================================= */
+.wizard-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 20px 16px;
+  flex-shrink: 0;
+}
+
+.wizard-progress__step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wizard-progress__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg-card-elevated);
+  border: 2px solid var(--border-subtle);
+  transition: all 0.3s var(--ease-spring);
+}
+
+.wizard-progress__dot.active {
+  background: var(--gold-300);
+  border-color: var(--gold-300);
+  box-shadow: 0 0 12px rgba(232, 194, 85, 0.4);
+  transform: scale(1.15);
+}
+
+.wizard-progress__dot.completed {
+  background: var(--gold-500);
+  border-color: var(--gold-500);
+}
+
+.wizard-progress__line {
+  width: 40px;
+  height: 2px;
+  background: var(--border-subtle);
+  transition: background 0.3s ease;
+}
+
+.wizard-progress__line.completed {
+  background: var(--gold-500);
+}
+
+/* =============================================
+   WIZARD STEP CONTENT
+   ============================================= */
+.wizard-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 20px 100px;
+}
+
+.wizard-step {
+  display: none;
+  animation: wizardFadeIn 0.35s var(--ease-out);
+}
+
+.wizard-step.active {
+  display: block;
+}
+
+@keyframes wizardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wizard-step__title {
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.wizard-step__subtitle {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+/* =============================================
+   STEP 1: TOURNAMENT NAME INPUT
+   ============================================= */
+.wizard-name-input {
+  width: 100%;
+  padding: 16px 18px;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  font-family: var(--font-main);
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.wizard-name-input:focus {
+  border-color: var(--gold-400);
+  box-shadow: 0 0 0 4px rgba(212, 168, 75, 0.1);
+}
+
+.wizard-name-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* Game Mode & Scoring Chips in Wizard */
+.wizard-chip-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.wizard-chip {
+  flex: 1;
+  padding: 12px 8px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: all 0.2s var(--ease-out);
+  cursor: pointer;
+}
+
+.wizard-chip:hover {
+  border-color: var(--gold-600);
+  color: var(--text-primary);
+}
+
+.wizard-chip.selected {
+  background: rgba(212, 168, 75, 0.1);
+  border-color: var(--gold-400);
+  color: var(--gold-200);
+  box-shadow: 0 0 16px rgba(212, 168, 75, 0.08);
+}
+
+.wizard-field-label {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wizard-field-label .required {
+  color: var(--gold-300);
+}
+
+/* =============================================
+   STEP 2: AI UPLOAD AREA
+   ============================================= */
+.ai-upload-section {
+  margin-top: 8px;
+}
+
+.ai-method-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ai-method-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  transition: all 0.25s var(--ease-out);
+  cursor: pointer;
+}
+
+.ai-method-btn:hover {
+  border-color: var(--gold-600);
+  color: var(--text-primary);
+}
+
+.ai-method-btn.selected {
+  background: rgba(212, 168, 75, 0.08);
+  border-color: var(--gold-400);
+  color: var(--gold-200);
+}
+
+.ai-method-btn svg {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.ai-method-btn.selected svg {
+  opacity: 1;
+  color: var(--gold-300);
+}
+
+.ai-method-btn__badge {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--gold-300);
+  background: rgba(212, 168, 75, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Upload Drop Zone */
+.ai-dropzone {
+  position: relative;
+  border: 2px dashed var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 32px 20px;
+  text-align: center;
+  background: var(--bg-card);
+  transition: all 0.3s var(--ease-out);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.ai-dropzone:hover {
+  border-color: var(--gold-500);
+  background: rgba(212, 168, 75, 0.03);
+}
+
+.ai-dropzone.drag-over {
+  border-color: var(--gold-300);
+  background: rgba(212, 168, 75, 0.06);
+  box-shadow: 0 0 24px rgba(212, 168, 75, 0.1);
+}
+
+.ai-dropzone.has-image {
+  border-style: solid;
+  border-color: var(--gold-500);
+  padding: 12px;
+}
+
+.ai-dropzone__icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  color: var(--gold-400);
+  opacity: 0.7;
+}
+
+.ai-dropzone__text {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.ai-dropzone__sub {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.ai-dropzone__hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 12px;
+  opacity: 0.7;
+}
+
+/* Hidden file input */
+.ai-dropzone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+/* Image Preview */
+.ai-preview {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.ai-preview img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.ai-preview__change-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-preview__change-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.ai-preview__filename {
+  margin-top: 8px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =============================================
+   AI PROCESSING STATE
+   ============================================= */
+.ai-processing {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.ai-processing__spinner {
+  width: 56px;
+  height: 56px;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--gold-300);
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  animation: aiSpin 0.9s linear infinite;
+}
+
+@keyframes aiSpin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-processing__title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.ai-processing__sub {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.ai-processing__progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-card-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.ai-processing__progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--gold-500), var(--gold-300));
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* =============================================
+   STEP 3: AI RESULTS / VERIFICATION
+   ============================================= */
+.ai-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.ai-results-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.ai-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+}
+
+.ai-stat--success {
+  color: #7dd87d;
+  border-color: rgba(125, 216, 125, 0.2);
+}
+
+.ai-stat--method {
+  color: var(--gold-300);
+  border-color: var(--accent-border);
+}
+
+/* Editable Team Cards in Review */
+.ai-team-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-team-review-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ai-team-review-card:hover {
+  border-color: var(--border-card);
+}
+
+.ai-team-review-card.editing {
+  border-color: var(--gold-400);
+  box-shadow: 0 0 12px rgba(212, 168, 75, 0.08);
+}
+
+.ai-slot-badge {
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--gold-300);
+  background: rgba(212, 168, 75, 0.1);
+  border: 1px solid rgba(212, 168, 75, 0.2);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.ai-team-name-edit {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  font-family: var(--font-main);
+  color: var(--text-primary);
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.ai-team-name-edit:focus {
+  background: var(--bg-input);
+  border-color: var(--gold-400);
+}
+
+.ai-team-confidence {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card-elevated);
+}
+
+.ai-team-confidence.high {
+  color: #7dd87d;
+}
+
+.ai-team-confidence.medium {
+  color: var(--gold-300);
+}
+
+.ai-team-confidence.low {
+  color: var(--danger);
+}
+
+.ai-team-remove-btn {
+  color: var(--text-muted);
+  padding: 4px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.ai-team-remove-btn:hover {
+  color: var(--danger);
+}
+
+/* Add Team Row */
+.ai-add-team-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  margin-top: 4px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--gold-300);
+  background: var(--bg-card);
+  border: 1.5px dashed var(--border-card);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-add-team-row:hover {
+  border-color: var(--gold-400);
+  background: rgba(212, 168, 75, 0.05);
+}
+
+/* AI Error State */
+.ai-error-state {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.ai-error-state__icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  color: var(--danger);
+  opacity: 0.7;
+}
+
+.ai-error-state__msg {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.ai-error-state__sub {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.ai-error-state__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* =============================================
+   MANUAL TEAM ENTRY (in Wizard Step 2/3)
+   ============================================= */
+.manual-entry-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(212, 168, 75, 0.05);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+.manual-entry-info svg {
+  flex-shrink: 0;
+  color: var(--gold-300);
+}
+
+.manual-entry-info span {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.manual-team-count-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.manual-team-count-input {
+  width: 70px;
+  padding: 10px 12px;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  font-family: var(--font-main);
+  text-align: center;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.manual-team-count-input:focus {
+  border-color: var(--gold-400);
+}
+
+.manual-team-count-label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* =============================================
+   WIZARD FOOTER (Sticky Actions)
+   ============================================= */
+.wizard-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px 20px calc(12px + var(--safe-bottom));
+  background: linear-gradient(180deg, transparent, var(--bg-primary) 20%);
+  z-index: 1001;
+}
+
+.wizard-footer__btn {
+  width: 100%;
+  padding: 16px;
+  font-size: var(--fs-base);
+  font-weight: 700;
+  font-family: var(--font-main);
+  color: #000;
+  background: var(--gradient-fab);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+  box-shadow: 0 4px 20px rgba(212, 168, 75, 0.25);
+}
+
+.wizard-footer__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 28px rgba(212, 168, 75, 0.35);
+}
+
+.wizard-footer__btn:active {
+  transform: translateY(0);
+}
+
+.wizard-footer__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.wizard-footer__btn--secondary {
+  background: var(--bg-card-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  box-shadow: none;
+}
+
+.wizard-footer__btn--secondary:hover {
+  border-color: var(--gold-600);
+  box-shadow: none;
+}
+
+.wizard-footer__dual {
+  display: flex;
+  gap: 10px;
+}
+
+.wizard-footer__dual .wizard-footer__btn {
+  flex: 1;
+}
+
+.wizard-footer__dual .wizard-footer__btn:last-child {
+  flex: 2;
+}
+
+/* =============================================
+   ANIMATIONS
+   ============================================= */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 168, 75, 0.3); }
+  50% { box-shadow: 0 0 20px 4px rgba(212, 168, 75, 0.15); }
+}
+
+.ai-dropzone:not(.has-image) .ai-dropzone__icon {
+  animation: pulseGlow 2.5s ease-in-out infinite;
+}
+
+/* Success animation for completed extraction */
+@keyframes successPop {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ai-results-success {
+  animation: successPop 0.4s var(--ease-spring);
+}

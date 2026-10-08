@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="LRD PointCalc — Premium Free Fire esports tournament points calculator." />
+  <meta name="theme-color" content="#09090d" />
+  <title>LRD PointCalc — Esports Tournament Calculator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@500;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles/design-system.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+  <link rel="stylesheet" href="styles/home.css" />
+  <link rel="stylesheet" href="styles/account.css" />
+  <link rel="stylesheet" href="styles/tournaments.css" />
+  <link rel="stylesheet" href="styles/auth.css" />
+  <link rel="stylesheet" href="styles/ai-wizard.css" />
+  <link rel="stylesheet" href="styles/design.css" />
+  <link rel="stylesheet" href="styles/template-editor.css" />
+</head>
+<body>
+
+  <div id="app" class="app-shell">
+
+    <!-- ===== SCREEN: SPLASH (Initial Loading) ===== -->
+    <div id="screen-splash" aria-label="Loading LRD PointCalc">
+      <div class="splash-content">
+        <div class="splash-logo-wrapper">
+          <div class="splash-logo-glow"></div>
+          <div class="splash-logo-box">
+            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/>
+              <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.24 7 20v2"/>
+              <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.24 17 20v2"/>
+              <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
+            </svg>
+          </div>
+        </div>
+        <h1 class="splash-brand">LRD <span>PointCalc</span></h1>
+        <p class="splash-tagline">Esports Tournament Calculator</p>
+        <div class="splash-spinner" aria-label="Checking session..."></div>
+      </div>
+    </div>
+
+    <!-- ===== SCREEN: LOGIN (Unauthenticated) ===== -->
+    <section id="screen-login" class="screen" aria-label="Sign In">
+      <div class="login-header">
+        <div class="login-badge-pill">
+          <span class="pill-dot"></span>
+          <span>Free Fire Esports</span>
+        </div>
+
+        <div class="login-logo-container">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/>
+            <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.24 7 20v2"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.24 17 20v2"/>
+            <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
+          </svg>
+        </div>
+
+        <h1 class="login-title">LRD <span>PointCalc</span></h1>
+        <p class="login-subtitle">Manage your Free Fire tournaments with ease.</p>
+
+        <div class="login-features">
+          <span class="login-feature-tag">Points Calculator</span>
+          <span class="login-feature-tag">Custom Scoring</span>
+          <span class="login-feature-tag">Leaderboards</span>
+        </div>
+      </div>
+
+      <div class="login-actions">
+        <div id="login-error" class="login-error-banner" role="alert">
+          Google sign-in failed. Please try again.
+        </div>
+
+        <!-- Google OAuth Button -->
+        <button id="btn-google-login" class="btn-google" aria-label="Continue with Google">
+          <svg class="google-icon-svg" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <!-- Guest / Quick Access Button -->
+        <button id="btn-guest-login" class="btn-guest-login" type="button" aria-label="Continue as Organizer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span>Continue as Organizer (Guest)</span>
+        </button>
+
+        <div class="login-footer">
+          <p class="login-disclaimer">
+            By continuing, you agree to our <a href="#" id="link-terms">Terms of Service</a> and <a href="#" id="link-privacy">Privacy Policy</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SCREEN: HOME (Protected) ===== -->
+    <section id="screen-home" class="screen" aria-label="Home">
+      <div class="screen-scroll">
+
+        <header class="home-header">
+          <div class="home-header__spacer"></div>
+          <button id="btn-avatar-home" class="avatar-btn" aria-label="Go to Account">
+            <span class="avatar-btn__letter" id="home-avatar-letter">?</span>
+          </button>
+        </header>
+
+        <div class="home-hero">
+          <span class="home-hero__welcome">Welcome to</span>
+          <h1 class="home-hero__title">LRD PointCalc</h1>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="section-block">
+          <div class="section-header">
+            <div class="section-header__indicator"></div>
+            <h2 class="section-header__title">Quick Actions</h2>
+            <span class="section-header__badge">Premium <span class="badge-dot"></span></span>
+          </div>
+
+          <div class="quick-actions-card">
+            <button type="button" class="quick-action" id="qa-create-tournament">
+              <div class="quick-action__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/>
+                  <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.24 7 20v2"/>
+                  <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.24 17 20v2"/>
+                  <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
+                  <line x1="12" y1="4" x2="12" y2="8" stroke-width="1.5"/><line x1="10" y1="6" x2="14" y2="6" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <span class="quick-action__label">Create<br/>Tournament</span>
+            </button>
+            <button type="button" class="quick-action" id="qa-design-studio">
+              <div class="quick-action__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M3 9h18M9 21V9"/>
+                </svg>
+              </div>
+              <span class="quick-action__label">Point Table<br/>Design</span>
+            </button>
+            <button class="quick-action" id="qa-import-tournament">
+              <div class="quick-action__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v12M12 15l-4-4M12 15l4-4"/>
+                  <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
+              </div>
+              <span class="quick-action__label">Import<br/>Tournament</span>
+            </button>
+            <button class="quick-action" id="qa-import-team">
+              <div class="quick-action__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M19 8v6M22 11h-6"/>
+                </svg>
+              </div>
+              <span class="quick-action__label">Import<br/>Team</span>
+            </button>
+            <button class="quick-action" id="qa-merge-tournament">
+              <div class="quick-action__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 3v6l6 3 6-3V3"/><path d="M6 9v6l6 3 6-3V9"/>
+                </svg>
+              </div>
+              <span class="quick-action__label">Merge<br/>Tournament</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- All Tournaments -->
+        <div class="section-block">
+          <div class="section-header">
+            <div class="section-header__indicator"></div>
+            <h2 class="section-header__title">All Tournaments</h2>
+            <button class="icon-btn" id="btn-search-tournaments" aria-label="Search tournaments">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+            </button>
+          </div>
+
+          <div id="tournament-list" class="tournament-list">
+            <!-- Rendered dynamically from local database -->
+          </div>
+        </div>
+
+        <div class="bottom-spacer"></div>
+      </div>
+
+      <button id="fab-create" class="fab" aria-label="Create new tournament">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        <span>Create</span>
+      </button>
+    </section>
+
+    <!-- ===== SCREEN: TOURNAMENTS TAB (Protected) ===== -->
+    <section id="screen-tournaments" class="screen" aria-label="Tournaments">
+      <div class="screen-scroll">
+        <header class="page-header">
+          <h1 class="page-header__title script-title">Tournaments</h1>
+        </header>
+
+        <div class="section-block" style="padding: 0 var(--space-lg);">
+          <div id="tournaments-tab-list" class="tournament-list">
+            <!-- Mirrored tournaments list -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SCREEN: DESIGN (Point Table Designs) ===== -->
+    <section id="screen-design" class="screen" aria-label="Point Table Design">
+      <div class="screen-scroll">
+        <!-- Top Bar: Back, Title, Info -->
+        <header class="designs-topbar">
+          <button type="button" class="designs-back-btn" id="design-btn-back" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+            <span>Back</span>
+          </button>
+          <h1 class="designs-title">Point Table Designs</h1>
+          <button type="button" class="designs-info-btn" id="design-btn-info" aria-label="Information">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="designs-search-wrap">
+          <div class="designs-search-box">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="design-search-input" class="designs-search-input" placeholder="Search designs..." autocomplete="off" />
+            <button type="button" id="design-search-clear" class="search-clear-btn" style="display: none;" aria-label="Clear search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter / Customization Action Chips -->
+        <div class="designs-action-chips">
+          <button type="button" class="action-chip-btn" id="design-btn-color">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.7-.8 1.7-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.2 0-1 .8-1.8 1.8-1.8H16c3.3 0 6-2.7 6-6 0-5.5-4.5-10-10-10z"/></svg>
+            <span>Color</span>
+          </button>
+          <button type="button" class="action-chip-btn" id="design-btn-background">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>Background</span>
+          </button>
+          <button type="button" class="action-chip-btn" id="design-btn-more">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+            <span>More</span>
+          </button>
+        </div>
+
+        <!-- Categories Filter (Pills) -->
+        <div class="designs-categories-bar">
+          <div class="categories-pills-row">
+            <button type="button" class="design-cat-pill active" id="design-cat-all" data-category="all">All</button>
+            <button type="button" class="design-cat-pill" id="design-tab-free" data-category="free">Free</button>
+            <button type="button" class="design-cat-pill" id="design-tab-premium" data-category="premium">Premium 🔒</button>
+            <button type="button" class="design-cat-pill" id="design-tab-import" data-category="custom">Custom</button>
+          </div>
+          <button type="button" class="btn-import-chip" id="btn-import-design-action">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Import Design</span>
+          </button>
+        </div>
+
+        <!-- Horizontal Swipe Carousel Area -->
+        <div class="designs-carousel-section">
+          <div id="design-carousel-container" class="carousel-container-outer">
+            <!-- Rendered by DesignCarousel -->
+          </div>
+        </div>
+
+        <!-- Standings / Matches Controls -->
+        <div class="designs-standings-controls">
+          <button type="button" class="btn-overall-standings active" id="btn-overall-standings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Overall Standings</span>
+          </button>
+          <div id="design-matches-bar" class="design-matches-bar" style="display: none;">
+            <!-- Dynamically populated Match 1, Match 2... pills -->
+          </div>
+        </div>
+
+        <!-- Hidden input for design import -->
+        <input type="file" id="design-file-input" accept="image/png,image/jpeg,image/jpg" style="display: none;" />
+
+        <div class="bottom-spacer" style="height: 100px;"></div>
+      </div>
+
+      <!-- Bottom Sticky Action Bar: DOWNLOAD & SHARE -->
+      <div class="designs-bottom-bar">
+        <button type="button" class="btn-design-download-main" id="btn-design-download">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <span>DOWNLOAD</span>
+        </button>
+        <button type="button" class="btn-design-share-main" id="btn-design-share" aria-label="Share Design">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- ===== SCREEN: TOURNAMENT ACTION DASHBOARD (Protected) ===== -->
+    <section id="screen-tournament-dashboard" class="screen" aria-label="Tournament Action Dashboard">
+      <div class="screen-scroll">
+        <header class="tournament-detail-header">
+          <button id="btn-back-dashboard" class="icon-btn" aria-label="Back to Home">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+          <div style="font-weight: 700; color: var(--gold-300); font-size: var(--fs-sm);">Point Calculator</div>
+          <button id="btn-delete-dashboard-tourn" class="icon-btn" aria-label="Delete Tournament" style="color: var(--danger);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+              <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+            </svg>
+          </button>
+        </header>
+
+        <div class="tournament-detail-hero">
+          <h1 class="td-title" id="dash-hero-name">Tournament Name</h1>
+          <div class="td-hero-total-teams" id="dash-hero-teams-count">Total teams: 12</div>
+          <div class="td-badges">
+            <span class="td-badge td-badge--gold" id="dash-badge-mode">Squad</span>
+            <span class="td-badge" id="dash-badge-teams">12 Teams</span>
+            <span class="td-badge" id="dash-badge-scoring">Official Scoring</span>
+          </div>
+        </div>
+
+        <!-- 8-Grid Action Buttons -->
+        <div class="tournament-action-grid">
+          <button type="button" class="action-grid-card action-grid-card--primary" id="btn-action-calculate">
+            <div class="action-grid-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                <line x1="8" y1="6" x2="16" y2="6"/>
+                <line x1="16" y1="14" x2="16" y2="18"/>
+                <path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M8 18h.01M12 18h.01"/>
+              </svg>
+            </div>
+            <span class="action-grid-label">Calculate</span>
+          </button>
+
+          <button type="button" class="action-grid-card" id="btn-action-tables">
+            <div class="action-grid-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/>
+              </svg>
+            </div>
+            <span class="action-grid-label">Tables</span>
+          </button>
+
+          <button type="button" class="action-grid-card action-grid-card--coming-soon" id="btn-action-warheads">
+            <div class="action-grid-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 8v8M8 12h8"/>
+              </svg>
+            </div>
+            <span class="action-grid-label">Warheads</span>
+          </button>
+
+          <button type="button" class="action-grid-card action-grid-card--coming-soon" id="btn-action-fraggers">
+            <div class="action-grid-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/>
+                <line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>
+              </svg>
+            </div>
+            <span class="action-grid-label">Fraggers</span>
+          </button>
+
+          <button type="button" class="action-grid-card" id="btn-action-design">
+            <div class="action-grid-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </div>
+            <span class="action-grid-label">Point Table Design</span>
+          </button>
+
+          <button type="button" class="action-grid-card action-grid-card--coming-soon" id="btn-action-slots">
+            <div class="action-grid-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/>
+                <polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/>
+              </svg>
+            </div>
+            <span class="action-grid-label">Slot List</span>
+          </button>
+
+          <button type="button" class="action-grid-card action-grid-card--coming-soon" id="btn-action-certificate">
+            <div class="action-grid-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="6"/>
+                <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
+              </svg>
+            </div>
+            <span class="action-grid-label">Certificate</span>
+          </button>
+
+          <button type="button" class="action-grid-card" id="btn-action-matches">
+            <div class="action-grid-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <span class="action-grid-label">Match History</span>
+          </button>
+        </div>
+
+        <!-- Secondary Actions (Share, Edit) -->
+        <div class="dashboard-secondary-bar">
+          <button type="button" class="btn-dash-secondary" id="btn-action-share">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            <span>Share</span>
+          </button>
+          <button type="button" class="btn-dash-secondary" id="btn-action-edit">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <span>Edit</span>
+          </button>
+        </div>
+
+        <div class="bottom-spacer"></div>
+      </div>
+    </section>
+
+    <!-- ===== SCREEN: TOURNAMENT DETAILS (Tables / Matches) ===== -->
+    <section id="screen-tournament-detail" class="screen" aria-label="Tournament Management">
+      <div class="screen-scroll">
+        <header class="tournament-detail-header">
+          <button id="btn-back-tournament" class="icon-btn" aria-label="Back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+          <div style="font-weight: 700; color: var(--gold-300); font-size: var(--fs-sm);">Point Calculator</div>
+          <button id="btn-delete-current-tournament" class="icon-btn" aria-label="Delete Tournament" style="color: var(--danger);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+              <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+            </svg>
+          </button>
+        </header>
+
+        <div class="tournament-detail-hero">
+          <h1 class="td-title" id="td-hero-name">Tournament Name</h1>
+          <div class="td-badges">
+            <span class="td-badge td-badge--gold" id="td-badge-mode">Squad</span>
+            <span class="td-badge" id="td-badge-teams">12 Teams</span>
+            <span class="td-badge" id="td-badge-scoring">Official Scoring</span>
+          </div>
+        </div>
+
+        <!-- Sub-tabs: Leaderboard vs Matches -->
+        <div class="subtabs-bar">
+          <button type="button" class="subtab-btn active" id="subtab-btn-leaderboard">Overall Leaderboard</button>
+          <button type="button" class="subtab-btn" id="subtab-btn-matches">Matches (<span id="td-matches-count">0</span>)</button>
+        </div>
+
+        <!-- Subtab 1: Overall Leaderboard -->
+        <div class="subtab-content active" id="subtab-view-leaderboard">
+          <div class="leaderboard-card">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th class="col-rank">#</th>
+                  <th class="col-team">Team</th>
+                  <th>M</th>
+                  <th>Kills</th>
+                  <th>Place</th>
+                  <th>Kill Pts</th>
+                  <th class="col-total">Total</th>
+                </tr>
+              </thead>
+              <tbody id="td-leaderboard-body">
+                <!-- Calculated dynamically by ScoringEngine -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Subtab 2: Matches List -->
+        <div class="subtab-content" id="subtab-view-matches">
+          <div class="matches-header">
+            <span style="font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 600;">Match History</span>
+            <button type="button" class="btn-add-match" id="btn-add-match">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+              <span>+ Add Match</span>
+            </button>
+          </div>
+          <div id="td-matches-list">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <div class="bottom-spacer"></div>
+      </div>
+    </section>
+
+    <!-- ===== SCREEN: ACCOUNT (Protected) ===== -->
+    <section id="screen-account" class="screen" aria-label="Account">
+      <div class="screen-scroll">
+        <header class="page-header">
+          <h1 class="page-header__title script-title">Account</h1>
+        </header>
+
+        <!-- Real Authenticated User Profile Card -->
+        <div class="profile-card">
+          <div class="profile-card__avatar" id="account-avatar-container">
+            <span class="profile-card__letter" id="account-avatar-letter">?</span>
+          </div>
+          <div class="profile-card__name" id="account-name">Loading...</div>
+          <p class="profile-card__email" id="account-email">user@example.com</p>
+        </div>
+
+        <!-- Account Options -->
+        <div class="menu-card">
+          <button class="menu-row" id="menu-manage-devices">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>
+              </svg>
+            </div>
+            <div class="menu-row__content"><span class="menu-row__label">Manage Devices</span></div>
+            <div class="menu-row__chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+          </button>
+          <div class="menu-divider"></div>
+
+          <button class="menu-row" id="menu-subscription">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+              </svg>
+            </div>
+            <div class="menu-row__content"><span class="menu-row__label">Subscription</span></div>
+            <div class="menu-row__chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+          </button>
+          <div class="menu-divider"></div>
+
+          <button class="menu-row" id="menu-restore-subscription">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+              </svg>
+            </div>
+            <div class="menu-row__content"><span class="menu-row__label">Restore Subscription</span></div>
+            <div class="menu-row__chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+          </button>
+          <div class="menu-divider"></div>
+
+          <button class="menu-row" id="menu-themes">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+            </div>
+            <div class="menu-row__content">
+              <span class="menu-row__label">Themes</span>
+              <span class="menu-row__sub">Download themes you added on another device</span>
+            </div>
+            <div class="menu-row__chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+          </button>
+          <div class="menu-divider"></div>
+
+          <button class="menu-row" id="menu-trash">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+              </svg>
+            </div>
+            <div class="menu-row__content"><span class="menu-row__label">Trash</span></div>
+            <div class="menu-row__chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+          </button>
+          <div class="menu-divider"></div>
+
+          <button class="menu-row" id="menu-signout">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </div>
+            <div class="menu-row__content"><span class="menu-row__label">Sign Out</span></div>
+          </button>
+        </div>
+
+        <!-- Support -->
+        <div class="section-label">Support</div>
+        <div class="menu-card">
+          <button class="menu-row" id="menu-email-support">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4l-10 8L2 4"/>
+              </svg>
+            </div>
+            <div class="menu-row__content">
+              <span class="menu-row__label">Email Support</span>
+              <span class="menu-row__sub">Contact the support team</span>
+            </div>
+          </button>
+          <div class="menu-divider"></div>
+
+          <button class="menu-row" id="menu-rate">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </div>
+            <div class="menu-row__content"><span class="menu-row__label">Rate LRD PointCalc</span></div>
+          </button>
+          <div class="menu-divider"></div>
+
+          <button class="menu-row" id="menu-share">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </div>
+            <div class="menu-row__content"><span class="menu-row__label">Share LRD PointCalc</span></div>
+          </button>
+        </div>
+
+        <!-- Legal -->
+        <div class="section-label">Legal</div>
+        <div class="menu-card">
+          <button class="menu-row" id="menu-privacy">
+            <div class="menu-row__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div class="menu-row__content"><span class="menu-row__label">Privacy Policy</span></div>
+          </button>
+        </div>
+
+        <p class="version-text" id="app-version"></p>
+        <div class="bottom-spacer"></div>
+      </div>
+    </section>
+
+    <!-- ===== CREATE TOURNAMENT MODAL ===== -->
+    <div id="modal-create" class="modal-overlay" aria-label="Create Tournament">
+      <div class="modal-sheet" style="max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-handle"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <h2 class="modal-title" style="margin-bottom: 0;">Create Tournament</h2>
+          <button type="button" class="icon-btn" id="btn-close-create-modal" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div id="create-error-banner" class="login-error-banner" style="margin-bottom: 10px;"></div>
+
+        <form id="form-create-tournament" autocomplete="off" style="overflow-y: auto; padding-right: 4px;">
+          <div class="form-group">
+            <label class="form-label" for="input-tournament-name">Tournament Name <span style="color: var(--gold-300);">*</span></label>
+            <input class="form-input" type="text" id="input-tournament-name" placeholder="e.g. LRD Night Cup" maxlength="60" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-team-count">Number of Teams <span style="color: var(--gold-300);">*</span></label>
+            <input class="form-input" type="number" id="input-team-count" placeholder="e.g. 12" min="2" max="48" value="12" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Game Mode</label>
+            <div class="form-select-group" id="select-game-mode">
+              <button type="button" class="form-chip" data-value="solo">Solo</button>
+              <button type="button" class="form-chip" data-value="duo">Duo</button>
+              <button type="button" class="form-chip selected" data-value="squad">Squad</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Scoring</label>
+            <div class="form-select-group" id="select-scoring">
+              <button type="button" class="form-chip selected" data-value="default">Default</button>
+              <button type="button" class="form-chip" data-value="custom">Custom</button>
+            </div>
+
+            <!-- Custom Scoring Settings (Collapsible) -->
+            <div id="custom-scoring-container" class="custom-scoring-container">
+              <div style="font-size: var(--fs-xs); font-weight: 700; color: var(--gold-300); margin-bottom: 6px;">
+                Custom Placement Points
+              </div>
+              <div class="custom-scoring-grid">
+                <div class="custom-place-row"><span>1st Place</span><input type="number" id="csp-1" class="custom-place-input" value="12" min="0" /></div>
+                <div class="custom-place-row"><span>2nd Place</span><input type="number" id="csp-2" class="custom-place-input" value="9" min="0" /></div>
+                <div class="custom-place-row"><span>3rd Place</span><input type="number" id="csp-3" class="custom-place-input" value="8" min="0" /></div>
+                <div class="custom-place-row"><span>4th Place</span><input type="number" id="csp-4" class="custom-place-input" value="7" min="0" /></div>
+                <div class="custom-place-row"><span>5th Place</span><input type="number" id="csp-5" class="custom-place-input" value="6" min="0" /></div>
+                <div class="custom-place-row"><span>6th Place</span><input type="number" id="csp-6" class="custom-place-input" value="5" min="0" /></div>
+                <div class="custom-place-row"><span>7th Place</span><input type="number" id="csp-7" class="custom-place-input" value="4" min="0" /></div>
+                <div class="custom-place-row"><span>8th Place</span><input type="number" id="csp-8" class="custom-place-input" value="3" min="0" /></div>
+                <div class="custom-place-row"><span>9th Place</span><input type="number" id="csp-9" class="custom-place-input" value="2" min="0" /></div>
+                <div class="custom-place-row"><span>10th Place</span><input type="number" id="csp-10" class="custom-place-input" value="1" min="0" /></div>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding: 6px 8px; background: rgba(0,0,0,0.25); border-radius: var(--radius-sm);">
+                <span style="font-size: var(--fs-xs); color: var(--text-primary); font-weight: 600;">Kill Point Value</span>
+                <input type="number" id="csp-kill" class="custom-place-input" value="1" min="0" style="width: 55px;" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Teams & Players Section -->
+          <div class="teams-creation-scroll-wrapper">
+            <div class="teams-creation-title-row">
+              <div>
+                <span class="teams-creation-title">Teams &amp; Players</span>
+                <span class="teams-creation-subtitle" id="create-teams-count-label">(12 Teams)</span>
+              </div>
+              <span style="font-size: 11px; color: var(--text-muted);">Player names optional</span>
+            </div>
+            <div id="create-teams-container" class="teams-creation-list">
+              <!-- Dynamically generated N separate team cards -->
+            </div>
+          </div>
+
+          <button type="submit" class="form-submit" id="btn-submit-tournament" style="margin-top: 16px;">Create Tournament</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== SETUP CALCULATE MODAL ===== -->
+    <div id="modal-setup-calculate" class="modal-overlay" aria-label="Setup Calculate">
+      <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <h2 class="modal-title" style="margin-bottom: 0;">SETUP CALCULATE</h2>
+          <button type="button" class="icon-btn" id="btn-close-setup-calc" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <form id="form-setup-calculate" autocomplete="off">
+          <div class="setup-calc-options-grid">
+            <div class="form-group">
+              <label class="form-label" for="calc-match-number">Match Number</label>
+              <input class="form-input" type="number" id="calc-match-number" min="1" max="100" value="1" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Multiplier</label>
+              <div class="multiplier-selector" id="mult-selector-group">
+                <button type="button" class="mult-chip selected" data-mult="1">1x</button>
+                <button type="button" class="mult-chip" data-mult="1.5">1.5x</button>
+                <button type="button" class="mult-chip" data-mult="2">2x</button>
+                <button type="button" class="mult-chip" data-mult="3">3x</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Position Entry</label>
+              <div class="position-entry-toggle-group" id="pos-toggle-group">
+                <div class="pos-toggle-card selected" data-pos-mode="increment">
+                  <span class="pos-toggle-title">
+                    <span class="pill-dot"></span> Auto Increment
+                  </span>
+                  <span class="pos-toggle-sub">1st to last place (1, 2, 3...)</span>
+                </div>
+                <div class="pos-toggle-card" data-pos-mode="decrement">
+                  <span class="pos-toggle-title">
+                    <span class="pill-dot"></span> Auto Decrement
+                  </span>
+                  <span class="pos-toggle-sub">Last to 1st place (12, 11, 10...)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="form-submit" id="btn-continue-calculate">Continue</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== MATCH RESULT ENTRY MODAL ===== -->
+    <div id="modal-match-entry" class="modal-overlay" aria-label="Match Result Entry">
+      <div class="modal-sheet match-entry-sheet">
+        <div class="modal-handle"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+          <div>
+            <h2 class="modal-title" id="me-title" style="margin-bottom: 2px;">Match 1 Results</h2>
+            <span id="me-multiplier-badge" class="td-badge td-badge--gold" style="font-size: 11px;">1x Multiplier</span>
+          </div>
+          <button type="button" class="icon-btn" id="btn-close-match-entry" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p style="font-size: var(--fs-xs); color: var(--text-muted); margin-bottom: 8px;">
+          Enter Position and Kills. Points are dynamically calculated by the ScoringEngine.
+        </p>
+
+        <!-- Validation Error Alert -->
+        <div id="me-error-banner" class="login-error-banner" style="margin-bottom: 10px;"></div>
+
+        <form id="form-match-entry" autocomplete="off">
+          <div id="me-teams-container" class="match-teams-entry-container">
+            <!-- Dynamically populated team cards with Position, Kills, Players toggle, and live score breakdown -->
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button type="button" class="btn-confirm-cancel" id="btn-cancel-match-entry">Cancel</button>
+            <button type="submit" class="form-submit" id="btn-save-match-entry" style="flex: 2; margin-top: 0;">Save Match</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== EDIT TOURNAMENT MODAL ===== -->
+    <div id="modal-edit-tournament" class="modal-overlay" aria-label="Edit Tournament">
+      <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <h2 class="modal-title" style="margin-bottom: 0;">Edit Tournament</h2>
+          <button type="button" class="icon-btn" id="btn-close-edit-tournament" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div id="edit-error-banner" class="login-error-banner" style="margin-bottom: 10px;"></div>
+
+        <form id="form-edit-tournament" autocomplete="off">
+          <div class="form-group">
+            <label class="form-label" for="edit-tournament-name">Tournament Name</label>
+            <input class="form-input" type="text" id="edit-tournament-name" maxlength="60" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Game Mode</label>
+            <div class="form-select-group" id="edit-select-game-mode">
+              <button type="button" class="form-chip" data-value="solo">Solo</button>
+              <button type="button" class="form-chip" data-value="duo">Duo</button>
+              <button type="button" class="form-chip" data-value="squad">Squad</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Scoring System</label>
+            <div class="form-select-group" id="edit-select-scoring">
+              <button type="button" class="form-chip" data-value="default">Default</button>
+              <button type="button" class="form-chip" data-value="custom">Custom</button>
+            </div>
+
+            <div id="edit-custom-scoring-container" class="custom-scoring-container">
+              <div style="font-size: var(--fs-xs); font-weight: 700; color: var(--gold-300); margin-bottom: 6px;">
+                Custom Placement Points
+              </div>
+              <div class="custom-scoring-grid">
+                <div class="custom-place-row"><span>1st Place</span><input type="number" id="edit-csp-1" class="custom-place-input" min="0" /></div>
+                <div class="custom-place-row"><span>2nd Place</span><input type="number" id="edit-csp-2" class="custom-place-input" min="0" /></div>
+                <div class="custom-place-row"><span>3rd Place</span><input type="number" id="edit-csp-3" class="custom-place-input" min="0" /></div>
+                <div class="custom-place-row"><span>4th Place</span><input type="number" id="edit-csp-4" class="custom-place-input" min="0" /></div>
+                <div class="custom-place-row"><span>5th Place</span><input type="number" id="edit-csp-5" class="custom-place-input" min="0" /></div>
+                <div class="custom-place-row"><span>6th Place</span><input type="number" id="edit-csp-6" class="custom-place-input" min="0" /></div>
+                <div class="custom-place-row"><span>7th Place</span><input type="number" id="edit-csp-7" class="custom-place-input" min="0" /></div>
+                <div class="custom-place-row"><span>8th Place</span><input type="number" id="edit-csp-8" class="custom-place-input" min="0" /></div>
+                <div class="custom-place-row"><span>9th Place</span><input type="number" id="edit-csp-9" class="custom-place-input" min="0" /></div>
+                <div class="custom-place-row"><span>10th Place</span><input type="number" id="edit-csp-10" class="custom-place-input" min="0" /></div>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding: 6px 8px; background: rgba(0,0,0,0.25); border-radius: var(--radius-sm);">
+                <span style="font-size: var(--fs-xs); color: var(--text-primary); font-weight: 600;">Kill Point Value</span>
+                <input type="number" id="edit-csp-kill" class="custom-place-input" min="0" style="width: 55px;" />
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="form-submit" id="btn-save-edit-tournament">Save Changes</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== DELETE MATCH CONFIRMATION MODAL ===== -->
+    <div id="modal-delete-match" class="modal-confirm-overlay" aria-label="Confirm Delete Match">
+      <div class="modal-confirm-card">
+        <div class="modal-confirm-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+          </svg>
+        </div>
+        <h3 class="modal-confirm-title">Delete Match?</h3>
+        <p class="modal-confirm-msg">This will remove this match and its contribution from the tournament leaderboard.</p>
+        <div class="modal-confirm-actions">
+          <button type="button" class="btn-confirm-cancel" id="btn-cancel-delete-match">Cancel</button>
+          <button type="button" class="btn-confirm-danger" id="btn-confirm-delete-match">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SIGN OUT CONFIRMATION MODAL ===== -->
+    <div id="modal-signout" class="modal-confirm-overlay" aria-label="Confirm Sign Out">
+      <div class="modal-confirm-card">
+        <div class="modal-confirm-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </div>
+        <h3 class="modal-confirm-title">Are you sure you want to sign out?</h3>
+        <p class="modal-confirm-msg">You will need to sign in again with Google to access your tournaments and calculations.</p>
+        <div class="modal-confirm-actions">
+          <button type="button" class="btn-confirm-cancel" id="btn-cancel-signout">Cancel</button>
+          <button type="button" class="btn-confirm-danger" id="btn-confirm-signout">Sign Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DELETE TOURNAMENT CONFIRMATION MODAL ===== -->
+    <div id="modal-delete-tournament" class="modal-confirm-overlay" aria-label="Confirm Delete Tournament">
+      <div class="modal-confirm-card">
+        <div class="modal-confirm-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+          </svg>
+        </div>
+        <h3 class="modal-confirm-title">Delete this tournament?</h3>
+        <p class="modal-confirm-msg">This will permanently delete the tournament, teams, matches and results from this device.</p>
+        <div class="modal-confirm-actions">
+          <button type="button" class="btn-confirm-cancel" id="btn-cancel-delete-tournament">Cancel</button>
+          <button type="button" class="btn-confirm-danger" id="btn-confirm-delete-tournament">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== AI WIZARD: PREMIUM TOURNAMENT CREATION ===== -->
+    <div id="wizard-create" class="wizard-overlay" aria-label="Create Tournament Wizard">
+      <!-- Wizard Header -->
+      <div class="wizard-header">
+        <button type="button" class="wizard-header__back" id="wizard-back-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          <span>Back</span>
+        </button>
+        <span class="wizard-header__title">Create Tournament</span>
+        <button type="button" class="wizard-header__close" id="wizard-close-btn" aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Step Progress Dots -->
+      <div class="wizard-progress">
+        <div class="wizard-progress__step"><div class="wizard-progress__dot active" id="wiz-dot-1"></div></div>
+        <div class="wizard-progress__line" id="wiz-line-1"></div>
+        <div class="wizard-progress__step"><div class="wizard-progress__dot" id="wiz-dot-2"></div></div>
+        <div class="wizard-progress__line" id="wiz-line-2"></div>
+        <div class="wizard-progress__step"><div class="wizard-progress__dot" id="wiz-dot-3"></div></div>
+      </div>
+
+      <!-- Wizard Body -->
+      <div class="wizard-body">
+
+        <!-- ===== STEP 1: Tournament Info ===== -->
+        <div class="wizard-step active" id="wiz-step-1">
+          <h2 class="wizard-step__title">Tournament Setup</h2>
+          <p class="wizard-step__subtitle">Name your tournament and configure the settings.</p>
+
+          <div class="wizard-field-label"><span>Tournament Name</span> <span class="required">*</span></div>
+          <input type="text" class="wizard-name-input" id="wiz-tournament-name" placeholder="e.g. LRD Night Cup" maxlength="60" autocomplete="off" />
+
+          <div class="wizard-field-label">Game Mode</div>
+          <div class="wizard-chip-group" id="wiz-game-mode">
+            <button type="button" class="wizard-chip" data-value="solo">Solo</button>
+            <button type="button" class="wizard-chip" data-value="duo">Duo</button>
+            <button type="button" class="wizard-chip selected" data-value="squad">Squad</button>
+          </div>
+
+          <div class="wizard-field-label">Scoring System</div>
+          <div class="wizard-chip-group" id="wiz-scoring">
+            <button type="button" class="wizard-chip selected" data-value="default">Default FF</button>
+            <button type="button" class="wizard-chip" data-value="custom">Custom</button>
+          </div>
+
+          <!-- Custom Scoring (Collapsed by default) -->
+          <div id="wiz-custom-scoring" class="custom-scoring-container">
+            <div style="font-size: var(--fs-xs); font-weight: 700; color: var(--gold-300); margin-bottom: 6px; margin-top: 12px;">Custom Placement Points</div>
+            <div class="custom-scoring-grid">
+              <div class="custom-place-row"><span>1st</span><input type="number" id="wiz-csp-1" class="custom-place-input" value="12" min="0" /></div>
+              <div class="custom-place-row"><span>2nd</span><input type="number" id="wiz-csp-2" class="custom-place-input" value="9" min="0" /></div>
+              <div class="custom-place-row"><span>3rd</span><input type="number" id="wiz-csp-3" class="custom-place-input" value="8" min="0" /></div>
+              <div class="custom-place-row"><span>4th</span><input type="number" id="wiz-csp-4" class="custom-place-input" value="7" min="0" /></div>
+              <div class="custom-place-row"><span>5th</span><input type="number" id="wiz-csp-5" class="custom-place-input" value="6" min="0" /></div>
+              <div class="custom-place-row"><span>6th</span><input type="number" id="wiz-csp-6" class="custom-place-input" value="5" min="0" /></div>
+              <div class="custom-place-row"><span>7th</span><input type="number" id="wiz-csp-7" class="custom-place-input" value="4" min="0" /></div>
+              <div class="custom-place-row"><span>8th</span><input type="number" id="wiz-csp-8" class="custom-place-input" value="3" min="0" /></div>
+              <div class="custom-place-row"><span>9th</span><input type="number" id="wiz-csp-9" class="custom-place-input" value="2" min="0" /></div>
+              <div class="custom-place-row"><span>10th</span><input type="number" id="wiz-csp-10" class="custom-place-input" value="1" min="0" /></div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding: 6px 8px; background: rgba(0,0,0,0.25); border-radius: var(--radius-sm);">
+              <span style="font-size: var(--fs-xs); color: var(--text-primary); font-weight: 600;">Kill Point Value</span>
+              <input type="number" id="wiz-csp-kill" class="custom-place-input" value="1" min="0" style="width: 55px;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== STEP 2: Team Import Method ===== -->
+        <div class="wizard-step" id="wiz-step-2">
+          <h2 class="wizard-step__title">Add Teams</h2>
+          <p class="wizard-step__subtitle">Import teams from a slot list image or enter them manually.</p>
+
+          <div class="ai-upload-section">
+            <!-- Method Toggle -->
+            <div class="ai-method-toggle">
+              <button type="button" class="ai-method-btn selected" id="wiz-method-ai" data-method="ai">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span>AI Image Import</span>
+                <span class="ai-method-btn__badge">AI</span>
+              </button>
+              <button type="button" class="ai-method-btn" id="wiz-method-manual" data-method="manual">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                <span>Manual Entry</span>
+              </button>
+            </div>
+
+            <!-- AI Upload Content -->
+            <div id="wiz-ai-content">
+              <!-- Dropzone (before image selected) -->
+              <div class="ai-dropzone" id="wiz-dropzone">
+                <input type="file" id="wiz-file-input" accept="image/png,image/jpeg,image/jpg,image/webp" />
+                <div class="ai-dropzone__icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </div>
+                <div class="ai-dropzone__text">Upload Slot List Image</div>
+                <div class="ai-dropzone__sub">Tap to browse or drag and drop</div>
+                <div class="ai-dropzone__hint">PNG, JPG, WebP · Max 10MB</div>
+              </div>
+
+              <!-- Image Preview (after image selected) -->
+              <div id="wiz-preview-area" style="display: none;">
+                <div class="ai-preview">
+                  <img id="wiz-preview-img" src="" alt="Slot list preview" />
+                  <button type="button" class="ai-preview__change-btn" id="wiz-change-image">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+                    Change Image
+                  </button>
+                </div>
+                <div class="ai-preview__filename" id="wiz-preview-filename"></div>
+              </div>
+
+              <!-- Processing State -->
+              <div id="wiz-processing" style="display: none;">
+                <div class="ai-processing">
+                  <div class="ai-processing__spinner"></div>
+                  <div class="ai-processing__title">Extracting Teams...</div>
+                  <div class="ai-processing__sub" id="wiz-processing-text">Analyzing slot list image</div>
+                  <div class="ai-processing__progress-bar">
+                    <div class="ai-processing__progress-fill" id="wiz-progress-fill"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- AI Error State -->
+              <div id="wiz-ai-error" style="display: none;">
+                <div class="ai-error-state">
+                  <div class="ai-error-state__icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  </div>
+                  <div class="ai-error-state__msg" id="wiz-error-msg">Extraction Failed</div>
+                  <div class="ai-error-state__sub" id="wiz-error-sub">Could not read teams from the image.</div>
+                  <div class="ai-error-state__actions">
+                    <button type="button" class="wizard-footer__btn wizard-footer__btn--secondary" id="wiz-retry-btn" style="width: auto; padding: 10px 20px; font-size: var(--fs-sm);">Try Again</button>
+                    <button type="button" class="wizard-footer__btn" id="wiz-manual-fallback-btn" style="width: auto; padding: 10px 20px; font-size: var(--fs-sm);">Enter Manually</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Manual Entry Content (hidden by default) -->
+            <div id="wiz-manual-content" style="display: none;">
+              <div class="manual-entry-info">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>Enter the number of teams and their names. You can also add players later.</span>
+              </div>
+              <div class="manual-team-count-row">
+                <input type="number" class="manual-team-count-input" id="wiz-manual-count" value="12" min="2" max="48" />
+                <span class="manual-team-count-label">teams in this tournament</span>
+              </div>
+              <div id="wiz-manual-teams-list" class="ai-team-review-list">
+                <!-- Dynamically generated manual team cards -->
+              </div>
+              <button type="button" class="ai-add-team-row" id="wiz-manual-add-team">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                Add Team
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== STEP 3: Review & Confirm ===== -->
+        <div class="wizard-step" id="wiz-step-3">
+          <h2 class="wizard-step__title">Review Teams</h2>
+          <p class="wizard-step__subtitle">Verify and edit the extracted teams before creating.</p>
+
+          <!-- Results Header -->
+          <div class="ai-results-header ai-results-success">
+            <div class="ai-results-stats">
+              <span class="ai-stat ai-stat--success" id="wiz-result-count">0 teams</span>
+              <span class="ai-stat ai-stat--method" id="wiz-result-method">AI</span>
+            </div>
+          </div>
+
+          <!-- Editable Team Cards -->
+          <div id="wiz-review-teams-list" class="ai-team-review-list">
+            <!-- Dynamically populated -->
+          </div>
+
+          <button type="button" class="ai-add-team-row" id="wiz-review-add-team">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            Add Team
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Wizard Footer (Sticky Action) -->
+      <div class="wizard-footer">
+        <div id="wiz-footer-single">
+          <button type="button" class="wizard-footer__btn" id="wiz-next-btn">Continue</button>
+        </div>
+        <div id="wiz-footer-dual" style="display: none;" class="wizard-footer__dual">
+          <button type="button" class="wizard-footer__btn wizard-footer__btn--secondary" id="wiz-prev-btn">Back</button>
+          <button type="button" class="wizard-footer__btn" id="wiz-create-btn">Create Tournament</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODAL: POINT TABLE PREVIEW & EXPORT ===== -->
+    <div id="modal-template-preview" class="modal-template-preview" aria-label="Point Table Preview">
+      <div class="pv-modal-window">
+        <div class="pv-modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold-300)" stroke-width="2.2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+            <span class="pv-modal-title">Generated Point Table</span>
+          </div>
+          <button type="button" class="icon-btn" id="pv-btn-close" aria-label="Close Preview">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Dynamic Context Selector Controls -->
+        <div class="pv-modal-controls">
+          <div class="pv-control-group">
+            <label class="pv-control-label" for="pv-tourn-select">TOURNAMENT</label>
+            <select id="pv-tourn-select" class="pv-select">
+              <!-- Dynamically populated from user's local tournaments -->
+            </select>
+          </div>
+          <div class="pv-control-group">
+            <label class="pv-control-label" for="pv-mode-select">STANDINGS MODE</label>
+            <select id="pv-mode-select" class="pv-select">
+              <option value="overall" selected>Overall Leaderboard (All Matches)</option>
+              <option value="match">Single Match Standings</option>
+            </select>
+          </div>
+          <div class="pv-control-group" id="pv-match-group" style="display: none;">
+            <label class="pv-control-label" for="pv-match-select">SELECT MATCH</label>
+            <select id="pv-match-select" class="pv-select">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Rendered Point Table Canvas Wrap -->
+        <div class="pv-canvas-scroll">
+          <div id="pv-canvas-wrap" class="pv-canvas-wrap">
+            <!-- Rendered by TemplateRenderer -->
+          </div>
+        </div>
+
+        <!-- Action / Export Footer -->
+        <div class="pv-modal-footer">
+          <button type="button" class="pv-btn-export pv-btn-export--primary" id="pv-btn-download-png">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            <span>Download PNG</span>
+          </button>
+          <button type="button" class="pv-btn-export" id="pv-btn-download-pdf">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>PDF</span>
+          </button>
+          <button type="button" class="pv-btn-export" id="pv-btn-share">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <span>Share</span>
+          </button>
+          <button type="button" class="pv-btn-export" id="pv-btn-edit-design">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span>Customize</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODAL: DESIGN COLOR PICKER ===== -->
+    <div id="modal-design-color" class="design-sheet-backdrop" aria-label="Customize Colors">
+      <div class="design-sheet-box">
+        <div class="design-sheet-header">
+          <h3>Customize Colors</h3>
+          <button type="button" class="sheet-close-btn" id="modal-color-close" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="design-sheet-body">
+          <label class="color-picker-group-label">Quick Color Schemes</label>
+          <div id="color-palette-presets" class="palette-presets-grid"></div>
+
+          <label class="color-picker-group-label" style="margin-top: var(--space-md);">Custom Color Overrides</label>
+          <div class="color-inputs-grid">
+            <div class="color-input-item">
+              <span>Primary</span>
+              <input type="color" id="color-inp-primary" value="#d4af37" />
+            </div>
+            <div class="color-input-item">
+              <span>Secondary</span>
+              <input type="color" id="color-inp-secondary" value="#ff4444" />
+            </div>
+            <div class="color-input-item">
+              <span>Text</span>
+              <input type="color" id="color-inp-text" value="#ffffff" />
+            </div>
+            <div class="color-input-item">
+              <span>Accent</span>
+              <input type="color" id="color-inp-accent" value="#ffd700" />
+            </div>
+            <div class="color-input-item">
+              <span>Background</span>
+              <input type="color" id="color-inp-bg" value="#0d0f18" />
+            </div>
+          </div>
+          <button type="button" class="btn-design-sheet-apply" id="btn-apply-custom-colors">Apply Custom Colors</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODAL: DESIGN BACKGROUND CHOOSER ===== -->
+    <div id="modal-design-background" class="design-sheet-backdrop" aria-label="Change Background">
+      <div class="design-sheet-box">
+        <div class="design-sheet-header">
+          <h3>Background Style</h3>
+          <button type="button" class="sheet-close-btn" id="modal-bg-close" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="design-sheet-body">
+          <div class="bg-options-list">
+            <button type="button" class="bg-opt-btn" id="bg-opt-default">
+              <span class="bg-opt-icon">🖼</span>
+              <div class="bg-opt-text">
+                <strong>Template Default</strong>
+                <small>Use the original template graphics</small>
+              </div>
+            </button>
+            <button type="button" class="bg-opt-btn" id="bg-opt-solid-dark">
+              <span class="bg-opt-icon">⬛</span>
+              <div class="bg-opt-text">
+                <strong>Solid Dark Arena</strong>
+                <small>Clean dark slate (#0d0f18)</small>
+              </div>
+            </button>
+            <button type="button" class="bg-opt-btn" id="bg-opt-solid-black">
+              <span class="bg-opt-icon">🌑</span>
+              <div class="bg-opt-text">
+                <strong>Pure OLED Black</strong>
+                <small>Pitch black background (#000000)</small>
+              </div>
+            </button>
+            <button type="button" class="bg-opt-btn" id="bg-opt-solid-gold">
+              <span class="bg-opt-icon">🏆</span>
+              <div class="bg-opt-text">
+                <strong>Gold Dark Gradient</strong>
+                <small>Subtle metallic gold glow</small>
+              </div>
+            </button>
+            <button type="button" class="bg-opt-btn" id="bg-opt-upload">
+              <span class="bg-opt-icon">📤</span>
+              <div class="bg-opt-text">
+                <strong>Upload Background Image</strong>
+                <small>Custom PNG/JPG banner or photo</small>
+              </div>
+            </button>
+            <input type="file" id="bg-file-input" accept="image/png,image/jpeg,image/jpg" style="display: none;" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODAL: DESIGN MORE ACTIONS ===== -->
+    <div id="modal-design-more" class="design-sheet-backdrop" aria-label="Template Actions">
+      <div class="design-sheet-box">
+        <div class="design-sheet-header">
+          <h3>Template Actions</h3>
+          <button type="button" class="sheet-close-btn" id="modal-more-close" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="design-sheet-body">
+          <div class="more-actions-list">
+            <button type="button" class="more-act-btn" id="more-action-edit">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <span>Edit Template in Studio</span>
+            </button>
+            <button type="button" class="more-act-btn" id="more-action-duplicate">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              <span>Duplicate Template</span>
+            </button>
+            <button type="button" class="more-act-btn" id="more-action-rename">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+              <span>Rename Template</span>
+            </button>
+            <button type="button" class="more-act-btn" id="more-action-save-new">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span>Save as New Custom Template</span>
+            </button>
+            <button type="button" class="more-act-btn more-act-btn--danger" id="more-action-delete" style="display: none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              <span>Delete Custom Template</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DRAWER: DESIGN INFO DRAWER ===== -->
+    <div id="design-info-drawer" class="design-sheet-backdrop" aria-label="Point Table Info">
+      <div class="design-sheet-box">
+        <div class="design-sheet-header">
+          <h3>Point Table Designs Guide</h3>
+          <button type="button" class="sheet-close-btn" id="design-info-close" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="design-sheet-body">
+          <div class="info-guide-section">
+            <h4>🏆 Professional Point Table Studio</h4>
+            <p>Select any broadcast template to display your tournament standings. All points, rankings, and placements are computed automatically using LRD PointCalc's official Free Fire scoring engine.</p>
+          </div>
+          <div class="info-guide-section">
+            <h4>🎨 Customization Actions</h4>
+            <p><strong>Color:</strong> Change primary, secondary, and accent colors instantly.<br>
+            <strong>Background:</strong> Apply custom solid shades or upload a custom image.<br>
+            <strong>More:</strong> Duplicate, rename, or customize templates with your own layout.</p>
+          </div>
+          <div class="info-guide-section">
+            <h4>📤 High-Res Download &amp; Share</h4>
+            <p>Click DOWNLOAD to export crystal-clear PNG images ready for WhatsApp, Instagram, and YouTube esports broadcasts.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODAL: PREMIUM UNLOCK ===== -->
+    <div id="modal-premium-unlock" class="modal-premium-unlock" aria-label="Unlock Premium Templates">
+      <div class="prem-modal-box">
+        <div class="prem-icon-badge">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <h3 id="prem-modal-title">Premium Esports Design</h3>
+        <p>Broadcast-tier esports templates with animated gradients, sponsor overlays, and pro typography are included with LRD Premium.</p>
+        <div class="prem-perks-list">
+          <div>✓ Unlock all pro broadcast templates</div>
+          <div>✓ High-resolution 4K poster exports</div>
+          <div>✓ Custom team logos &amp; watermark removal</div>
+          <div>✓ Free Fire tournament bracket generator</div>
+        </div>
+        <button type="button" id="btn-premium-close">Got It / Stay with Free</button>
+      </div>
+    </div>
+
+    <!-- ===== SCREEN: CANVA-STYLE TEMPLATE EDITOR ===== -->
+    <div id="screen-template-editor" aria-label="Template Editor">
+      <!-- Editor Top Bar -->
+      <div class="te-topbar">
+        <div class="te-topbar__left">
+          <button type="button" class="te-btn-back" id="te-btn-back" aria-label="Back to Designs">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <input type="text" class="te-template-name-input" id="te-template-name" value="My Point Table" title="Click to rename template" />
+        </div>
+        <div class="te-topbar__right">
+          <button type="button" class="te-btn-top te-btn-preview" id="te-btn-preview">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>Preview</span>
+          </button>
+          <button type="button" class="te-btn-top te-btn-save" id="te-btn-save">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>Save</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Editor Viewport / Stage -->
+      <div class="te-viewport" id="te-canvas-viewport">
+        <div class="te-canvas-stage" id="te-canvas-stage">
+          <!-- Rendered template fields with draggable handles -->
+        </div>
+      </div>
+
+      <!-- Editor Bottom Bar -->
+      <div class="te-bottombar">
+        <button type="button" class="te-btn-action-bar" id="te-btn-add-field">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span>+ Add Field</span>
+        </button>
+        <button type="button" class="te-btn-action-bar" id="te-btn-info">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Template Info</span>
+        </button>
+      </div>
+
+      <!-- Bottom Sheet for Selected Field Properties -->
+      <div id="te-props-sheet" class="te-props-sheet"></div>
+
+      <!-- Drawer for Dynamic Template Info Binding -->
+      <div id="te-info-drawer" class="te-info-drawer"></div>
+
+      <!-- Modal for Adding Fields -->
+      <div id="te-add-field-modal" class="te-modal-backdrop"></div>
+    </div>
+
+    <!-- ===== TOAST ===== -->
+    <div id="toast" class="toast"></div>
+
+    <!-- ===== BOTTOM NAVIGATION ===== -->
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Main Navigation">
+      <button class="nav-item active" data-screen="home" id="nav-home">
+        <svg class="nav-item__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span class="nav-item__label">Home</span>
+      </button>
+      <button class="nav-item" data-screen="tournaments" id="nav-tournaments">
+        <svg class="nav-item__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/>
+          <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.24 7 20v2"/>
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.24 17 20v2"/>
+          <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
+        </svg>
+        <span class="nav-item__label">Tournaments</span>
+      </button>
+      <button class="nav-item" data-screen="design" id="nav-design">
+        <svg class="nav-item__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18M9 21V9"/>
+        </svg>
+        <span class="nav-item__label">Design</span>
+      </button>
+      <button class="nav-item" data-screen="account" id="nav-account">
+        <svg class="nav-item__icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span class="nav-item__label">Account</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- Supabase JS CDN (v2) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- App Configuration & Real Supabase client -->
+  <script src="scripts/config.js?v=1.0.4"></script>
+  <!-- Scoring Engine (Deterministic Single Source of Truth) -->
+  <script src="scripts/scoring-engine.js?v=1.0.4"></script>
+  <!-- Local Database Service (On-Device Storage) -->
+  <script src="scripts/local-db.js?v=1.0.4"></script>
+  <!-- AI Service (Slot List Extraction) -->
+  <script src="scripts/ai/ai-service.js?v=1.0.4"></script>
+  <!-- Design System & Point Table Generator Modules -->
+  <script src="scripts/design/template-variables.js?v=1.0.4"></script>
+  <script src="scripts/design/template-store.js?v=1.0.4"></script>
+  <script src="scripts/design/template-renderer.js?v=1.0.4"></script>
+  <script src="scripts/design/design-carousel.js?v=1.0.4"></script>
+  <script src="scripts/design/export-engine.js?v=1.0.4"></script>
+  <script src="scripts/design/template-editor.js?v=1.0.4"></script>
+  <script src="scripts/design/design-manager.js?v=1.0.4"></script>
+  <!-- Application Logic & UI Controller -->
+  <script src="scripts/app.js?v=1.0.4"></script>
+</body>
+</html>

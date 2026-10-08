@@ -1,0 +1,81 @@
+/* ============================================
+   LRD PointCalc — Home Screen (White & Gold)
+   ============================================ */
+
+/* ===== Home Header ===== */
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--space-md) var(--space-lg);
+  padding-top: var(--space-lg);
+  position: relative;
+  z-index: 2;
+}
+
+.home-header__spacer { flex: 1; }
+
+/* ===== Top Gradient ===== */
+#screen-home .screen-scroll {
+  position: relative;
+}
+
+#screen-home .screen-scroll::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 260px;
+  background: linear-gradient(180deg, #1a1608 0%, #120f08 40%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== Hero ===== */
+.home-hero {
+  text-align: center;
+  padding: 0 var(--space-lg) var(--space-xl);
+  position: relative;
+  z-index: 1;
+  margin-top: -8px;
+}
+
+.home-hero__welcome {
+  display: block;
+  font-family: var(--font-script);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.home-hero__title {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+/* ===== Section Block ===== */
+.section-block {
+  margin-bottom: var(--space-lg);
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Tournament List ===== */
+.tournament-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== Entrance Animations ===== */
+#screen-home .home-hero {
+  animation: fadeSlideIn 500ms var(--ease-out) both;
+}
+#screen-home .quick-actions-card {
+  animation: fadeSlideIn 500ms 80ms var(--ease-out) both;
+}
+#screen-home .section-block:last-of-type {
+  animation: fadeSlideIn 500ms 160ms var(--ease-out) both;
+}

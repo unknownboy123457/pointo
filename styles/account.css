@@ -1,0 +1,47 @@
+/* ============================================
+   LRD PointCalc — Account Screen (White & Gold)
+   ============================================ */
+
+#screen-account .screen-scroll {
+  position: relative;
+}
+
+#screen-account .screen-scroll::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 280px;
+  background: linear-gradient(180deg, #1a1608 0%, #120f08 50%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#screen-account .page-header {
+  position: relative;
+  z-index: 1;
+  padding-top: var(--space-xl);
+  padding-bottom: var(--space-sm);
+}
+
+#screen-account .profile-card,
+#screen-account .menu-card,
+#screen-account .section-label,
+#screen-account .danger-section,
+#screen-account .version-text {
+  position: relative;
+  z-index: 1;
+}
+
+/* Entrance animations */
+#screen-account.active .profile-card {
+  animation: fadeSlideIn 400ms var(--ease-out) both;
+}
+#screen-account.active .menu-card {
+  animation: fadeSlideIn 400ms 80ms var(--ease-out) both;
+}
+#screen-account.active .section-label {
+  animation: fadeSlideIn 400ms 120ms var(--ease-out) both;
+}
+#screen-account.active .danger-section {
+  animation: fadeSlideIn 400ms 200ms var(--ease-out) both;
+}
