@@ -385,6 +385,274 @@
       };
     },
 
+    /**
+     * Parse rich lobby roster text including individual player names
+     */
+    parseLobbyRosterText(rawText) {
+      if (!rawText || typeof rawText !== 'string') return [];
+      const lines = rawText.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+      const slots = [];
+      let currentSlot = null;
+
+      const slotRegex = /^(?:slot|s|#)?\s*(\d{1,2})\s*[:.)-]?\s*(.+)$/i;
+
+      for (const line of lines) {
+        // Check if line starts a new slot
+        const match = line.match(slotRegex);
+        if (match && parseInt(match[1], 10) > 0 && parseInt(match[1], 10) <= 48) {
+          const slotNum = parseInt(match[1], 10);
+          const rest = match[2].trim();
+
+          // Check if players are inline like "Team Name [P1, P2, P3, P4]" or "Team Name - P1, P2"
+          let teamName = rest;
+          let inlinePlayers = [];
+
+          const bracketMatch = rest.match(/^(.+?)\s*\[(.*?)\]$/);
+          if (bracketMatch) {
+            teamName = bracketMatch[1].trim();
+            inlinePlayers = bracketMatch[2].split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
+          } else if (rest.includes(' - ')) {
+            const parts = rest.split(' - ');
+            teamName = parts[0].trim();
+            inlinePlayers = parts[1].split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
+          }
+
+          currentSlot = {
+            slot: slotNum,
+            teamName: teamName || `Team ${slotNum}`,
+            players: inlinePlayers.map((p) => ({ name: p, kills: 0 })),
+            confidence: 0.85,
+          };
+          slots.push(currentSlot);
+        } else if (currentSlot) {
+          // Additional player lines under current slot (e.g. indented or bulleted)
+          const cleaned = line.replace(/^[-*•>]\s*/, '').trim();
+          if (cleaned && !cleaned.toLowerCase().startsWith('slot')) {
+            const parts = cleaned.split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
+            parts.forEach((pName) => {
+              if (pName && !currentSlot.players.some((p) => p.name.toLowerCase() === pName.toLowerCase())) {
+                currentSlot.players.push({ name: pName, kills: 0 });
+              }
+            });
+          }
+        }
+      }
+
+      // If no rich format detected, fallback to standard parseSlotListText
+      if (slots.length === 0) {
+        const standard = parseSlotListText(rawText);
+        return standard.map((s) => ({
+          ...s,
+          players: [],
+        }));
+      }
+
+      return slots.sort((a, b) => a.slot - b.slot);
+    },
+
+    /**
+     * Parse end-game result screenshot text for player names, kills, and ranks
+     */
+    parseMatchResultsText(rawText) {
+      if (!rawText || typeof rawText !== 'string') return [];
+      const lines = rawText.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+      const extracted = [];
+
+      // Patterns matching:
+      // "1. Mafia - 4 Kills"
+      // "#1 Mafia (4)"
+      // "Rank 1 Total Gaming 12 kills"
+      // "PlayerName 4 kills"
+      const resultPatterns = [
+        /^(?:#|rank\s*)?(\d{1,2})\s*[:.)-]?\s+(.+?)\s+[-—:]?\s*(\d{1,2})\s*(?:kills?|k|pts)?$/i,
+        /^(.+?)\s+[-—:]\s*(\d{1,2})\s*(?:kills?|k)$/i,
+        /^(\d{1,2})\s+([a-zA-Z0-9_\s]{2,20})\s+(\d{1,2})$/,
+      ];
+
+      for (const line of lines) {
+        // Skip header lines
+        if (/^(match|results|scoreboard|kills|placement|booyah)/i.test(line)) continue;
+
+        let matched = false;
+        for (const pattern of resultPatterns) {
+          const m = line.match(pattern);
+          if (m) {
+            if (m.length === 4) {
+              const rank = parseInt(m[1], 10);
+              const name = m[2].trim();
+              const kills = parseInt(m[3], 10);
+              extracted.push({ rank, name, kills, confidence: 0.85 });
+              matched = true;
+              break;
+            } else if (m.length === 3) {
+              const name = m[1].trim();
+              const kills = parseInt(m[2], 10);
+              extracted.push({ rank: null, name, kills, confidence: 0.8 });
+              matched = true;
+              break;
+            }
+          }
+        }
+      }
+
+      return extracted;
+    },
+
+    /**
+     * Merge lobby roster with multiple result screenshots
+     * - Associates extracted players with teams from the lobby roster
+     * - Aggregates individual player kills into team totals
+     * - Prevents duplicate player count across overlapping screenshots
+     * - Assigns placements and flags warnings for manual review
+     */
+    mergeScreenshots(lobbySlots = [], resultScreenshotsData = []) {
+      const warnings = [];
+      const teams = lobbySlots.map((slot) => ({
+        slot: slot.slot,
+        teamName: slot.teamName,
+        players: (slot.players || []).map((p) => ({
+          name: typeof p === 'string' ? p : p.name,
+          kills: 0,
+        })),
+        teamKillsOverride: null,
+        placement: slot.placement || null,
+        isRemoved: false,
+      }));
+
+      // Flatten and deduplicate extracted player results across all screenshots
+      const seenPlayers = new Set();
+      const allExtracted = [];
+
+      resultScreenshotsData.forEach((screenData, screenIdx) => {
+        const entries = Array.isArray(screenData) ? screenData : (screenData.entries || []);
+        entries.forEach((entry) => {
+          const normName = entry.name.toLowerCase().trim();
+          if (seenPlayers.has(normName)) {
+            // Already counted from previous screenshot (overlapping screenshot handling)
+            return;
+          }
+          seenPlayers.add(normName);
+          allExtracted.push({ ...entry, screenIndex: screenIdx });
+        });
+      });
+
+      // Match extracted entries to teams in roster
+      allExtracted.forEach((ext) => {
+        const extName = ext.name.toLowerCase().trim();
+        let matched = false;
+
+        // 1. Try matching with registered team players
+        for (const team of teams) {
+          const pIndex = team.players.findIndex((p) => p.name.toLowerCase().trim() === extName);
+          if (pIndex !== -1) {
+            team.players[pIndex].kills = ext.kills;
+            if (ext.rank && !team.placement) {
+              team.placement = ext.rank;
+            }
+            matched = true;
+            break;
+          }
+        }
+
+        // 2. Try matching with team name itself
+        if (!matched) {
+          for (const team of teams) {
+            if (team.teamName.toLowerCase().trim() === extName) {
+              if (team.players.length === 0) {
+                // Team-level kill assignment
+                team.teamKillsOverride = ext.kills;
+              } else {
+                // Add as new player or distribute
+                team.players.push({ name: `${ext.name} (Player)`, kills: ext.kills });
+              }
+              if (ext.rank && !team.placement) team.placement = ext.rank;
+              matched = true;
+              break;
+            }
+          }
+        }
+
+        // 3. Unmatched player: add warning and assign to closest slot or unassigned
+        if (!matched) {
+          warnings.push(`Player "${ext.name}" (${ext.kills} kills) could not be matched to any lobby team.`);
+        }
+      });
+
+      // Calculate total team kills for each team
+      teams.forEach((t) => {
+        if (t.teamKillsOverride === null) {
+          t.totalKills = t.players.reduce((sum, p) => sum + (Number(p.kills) || 0), 0);
+        } else {
+          t.totalKills = Number(t.teamKillsOverride) || 0;
+        }
+      });
+
+      return {
+        teams,
+        warnings,
+        totalMatchedPlayers: seenPlayers.size,
+      };
+    },
+
+    /**
+     * Full AI extraction pipeline for 1 lobby + 2 result screenshots
+     */
+    async extractFullMatchScreenshots({ lobbyFile, resultFiles = [] }, onProgress) {
+      const progress = (pct, msg) => {
+        if (typeof onProgress === 'function') onProgress(pct, msg);
+      };
+
+      progress(10, 'Validating uploaded screenshots...');
+      if (!lobbyFile && resultFiles.length === 0) {
+        throw new Error('Please upload at least one screenshot to scan.');
+      }
+
+      let lobbySlots = [];
+      if (lobbyFile) {
+        progress(25, 'Processing lobby screenshot...');
+        const lobbyRes = await this.extractSlotList(lobbyFile);
+        if (lobbyRes.success && lobbyRes.entries.length > 0) {
+          lobbySlots = lobbyRes.entries.map((e) => ({
+            slot: e.slot,
+            teamName: e.teamName,
+            players: [],
+          }));
+        } else if (lobbyRes.rawText) {
+          lobbySlots = this.parseLobbyRosterText(lobbyRes.rawText);
+        }
+      }
+
+      // Default 12 slots if lobby extraction did not find all slots
+      if (lobbySlots.length === 0) {
+        for (let i = 1; i <= 12; i++) {
+          lobbySlots.push({ slot: i, teamName: `Team ${i}`, players: [] });
+        }
+      }
+
+      const resultsData = [];
+      for (let i = 0; i < resultFiles.length; i++) {
+        const file = resultFiles[i];
+        if (!file) continue;
+        progress(40 + Math.round((i + 1) * 20), `Scanning result screenshot ${i + 1} of ${resultFiles.length}...`);
+        const res = await this.extractSlotList(file);
+        if (res.rawText) {
+          resultsData.push(this.parseMatchResultsText(res.rawText));
+        } else if (res.entries) {
+          resultsData.push(res.entries.map((e) => ({ name: e.teamName, kills: 0, rank: e.slot })));
+        }
+      }
+
+      progress(85, 'Merging rosters and aggregating kills...');
+      const merged = this.mergeScreenshots(lobbySlots, resultsData);
+
+      progress(100, 'Extraction complete!');
+      return {
+        success: true,
+        teams: merged.teams,
+        warnings: merged.warnings,
+      };
+    },
+
     // Expose utilities
     validateImageFile,
     createPreviewUrl,

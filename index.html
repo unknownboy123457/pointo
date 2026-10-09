@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="styles/design.css" />
   <link rel="stylesheet" href="styles/template-editor.css" />
   <link rel="stylesheet" href="styles/team-simulator.css" />
+  <link rel="stylesheet" href="styles/ai-scanner.css" />
 </head>
 <body>
 
@@ -517,14 +518,14 @@
             <span class="action-grid-label">Point Table Design</span>
           </button>
 
-          <button type="button" class="action-grid-card action-grid-card--coming-soon" id="btn-action-slots">
+          <button type="button" class="action-grid-card" id="btn-action-slots">
             <div class="action-grid-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/>
                 <polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/>
               </svg>
             </div>
-            <span class="action-grid-label">Slot List</span>
+            <span class="action-grid-label">Slot List &amp; AI</span>
           </button>
 
           <button type="button" class="action-grid-card action-grid-card--coming-soon" id="btn-action-certificate">
@@ -638,6 +639,217 @@
         </div>
 
         <div class="bottom-spacer"></div>
+      </div>
+    </section>
+
+    <!-- ===== SCREEN: LRD POINTCALC AI SCANNER ===== -->
+    <section id="screen-ai-scanner" class="screen" aria-label="LRD PointCalc AI Scanner">
+      <div class="scanner-scroll-wrap">
+        <!-- Header -->
+        <header class="scanner-header">
+          <button type="button" class="scanner-back-btn" id="scanner-btn-back" aria-label="Back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+            <span>Back</span>
+          </button>
+          <div class="scanner-title-wrap">
+            <span class="scanner-sparkle-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/>
+              </svg>
+            </span>
+            <h1 class="scanner-header-title">LRD PointCalc AI</h1>
+          </div>
+          <span class="scanner-match-badge" id="scanner-match-badge">Match 1 • 1x</span>
+        </header>
+
+        <!-- Tutorial Banner -->
+        <div class="scanner-tutorial-banner">
+          <button type="button" class="scanner-tutorial-play-btn" id="scanner-btn-tutorial" aria-label="How to use">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <div class="scanner-tutorial-text">
+            <strong>How to use LRD PointCalc AI</strong> • Upload lobby + 2 result screenshots, or switch to manual entry to record kills &amp; placements with instant ScoringEngine calculation.
+          </div>
+        </div>
+
+        <!-- Mode Selector: AI Mode / Manual Mode -->
+        <div class="scanner-mode-switch-row">
+          <div class="scanner-mode-pill-box">
+            <button type="button" class="scanner-mode-btn active" id="scanner-mode-ai">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
+              <span>AI Mode</span>
+            </button>
+            <button type="button" class="scanner-mode-btn" id="scanner-mode-manual">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Manual Mode</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="scanner-progress-card" id="scanner-progress-card">
+          <div class="scanner-progress-header">
+            <span class="scanner-progress-title">
+              <span class="pill-dot"></span> Extracting Screenshots
+            </span>
+            <span class="scanner-progress-pct" id="scanner-progress-pct">0%</span>
+          </div>
+          <div class="scanner-progress-bar-track">
+            <div class="scanner-progress-bar-fill" id="scanner-progress-fill"></div>
+          </div>
+          <div class="scanner-progress-msg" id="scanner-progress-msg">Preparing...</div>
+        </div>
+
+        <!-- Warnings Container -->
+        <div id="scanner-warnings-container"></div>
+
+        <!-- ===== CARD 1: LOBBY SCREENSHOTS ===== -->
+        <div class="scanner-card" id="scanner-card-lobby">
+          <div class="scanner-card-header">
+            <div class="scanner-card-badge">1</div>
+            <div class="scanner-card-title-group">
+              <h2 class="scanner-card-title">Lobby Screenshots</h2>
+              <p class="scanner-card-instruction">Make sure the screenshot shows all players alive for the best accuracy.</p>
+            </div>
+          </div>
+
+          <!-- Previews Row -->
+          <div class="scanner-previews-row">
+            <div class="scanner-preview-card" id="scanner-preview-card-lobby">
+              <div class="scanner-preview-thumb-area" id="scanner-thumb-lobby" title="Click to upload lobby screenshot">
+                <div class="scanner-preview-empty">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <span class="scanner-preview-empty-text">Add Lobby</span>
+                </div>
+                <span class="scanner-preview-slot-tag">Slots 1-12</span>
+              </div>
+              <div class="scanner-preview-actions">
+                <button type="button" class="scanner-preview-btn" id="scanner-btn-update-lobby">Update</button>
+                <button type="button" class="scanner-preview-btn scanner-preview-btn--del" id="scanner-btn-del-lobby">Delete</button>
+              </div>
+            </div>
+          </div>
+          <input type="file" id="scanner-lobby-file-input" accept="image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
+
+          <!-- Remember Lobby Toggle -->
+          <div class="scanner-remember-row">
+            <div class="scanner-remember-left">
+              <div>
+                <div class="scanner-remember-label">Remember lobby</div>
+                <div class="scanner-remember-sub">Save confirmed lobby roster for future matches in this tournament</div>
+              </div>
+            </div>
+            <label class="scanner-switch">
+              <input type="checkbox" id="scanner-remember-toggle" checked />
+              <span class="scanner-slider"></span>
+            </label>
+          </div>
+
+          <!-- Slot List Manager Bar -->
+          <div class="scanner-slotlist-bar">
+            <select class="scanner-slotlist-select" id="scanner-slotlist-select">
+              <option value="">-- Use Saved Slot List --</option>
+            </select>
+            <button type="button" class="scanner-slotlist-btn" id="scanner-btn-save-roster">Save Roster</button>
+            <button type="button" class="scanner-slotlist-btn" id="scanner-btn-manage-roster">Manage</button>
+          </div>
+        </div>
+
+        <!-- ===== CARD 2: RESULT SCREENSHOTS ===== -->
+        <div class="scanner-card" id="scanner-card-results">
+          <div class="scanner-card-header">
+            <div class="scanner-card-badge">2</div>
+            <div class="scanner-card-title-group">
+              <h2 class="scanner-card-title">Result Screenshots</h2>
+              <p class="scanner-card-instruction">Make sure screenshots are clear and kill counts are accurate.</p>
+            </div>
+          </div>
+
+          <!-- Result Screenshots Previews Row (2 Result screens) -->
+          <div class="scanner-previews-row">
+            <!-- Result Screen 1 -->
+            <div class="scanner-preview-card" id="scanner-preview-card-res1">
+              <div class="scanner-preview-thumb-area" id="scanner-thumb-res1" title="Click to upload Result 1 (Top)">
+                <div class="scanner-preview-empty">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <span class="scanner-preview-empty-text">Add Screen 1</span>
+                </div>
+                <span class="scanner-preview-slot-tag">R1 (Top)</span>
+              </div>
+              <div class="scanner-preview-actions">
+                <button type="button" class="scanner-preview-btn" id="scanner-btn-update-res1">Update</button>
+                <button type="button" class="scanner-preview-btn scanner-preview-btn--del" id="scanner-btn-del-res1">Delete</button>
+              </div>
+            </div>
+
+            <!-- Result Screen 2 -->
+            <div class="scanner-preview-card" id="scanner-preview-card-res2">
+              <div class="scanner-preview-thumb-area" id="scanner-thumb-res2" title="Click to upload Result 2 (Bottom)">
+                <div class="scanner-preview-empty">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <span class="scanner-preview-empty-text">Add Screen 2</span>
+                </div>
+                <span class="scanner-preview-slot-tag">R2 (Bottom)</span>
+              </div>
+              <div class="scanner-preview-actions">
+                <button type="button" class="scanner-preview-btn" id="scanner-btn-update-res2">Update</button>
+                <button type="button" class="scanner-preview-btn scanner-preview-btn--del" id="scanner-btn-del-res2">Delete</button>
+              </div>
+            </div>
+          </div>
+          <input type="file" id="scanner-res1-file-input" accept="image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
+          <input type="file" id="scanner-res2-file-input" accept="image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
+
+          <!-- Extracted Team Results Header -->
+          <div class="scanner-results-section-header">
+            <span class="scanner-results-section-title">Teams &amp; Results</span>
+            <button type="button" class="scanner-slotlist-btn" id="scanner-btn-add-team-slot">+ Add Team</button>
+          </div>
+
+          <!-- Team Result Cards Container -->
+          <div class="scanner-teams-list" id="scanner-teams-list">
+            <!-- Dynamically populated team cards with purple pills and inline editor -->
+          </div>
+        </div>
+
+        <div style="height: 60px;"></div>
+      </div>
+
+      <!-- Sticky Bottom Action Bar -->
+      <div class="scanner-bottom-action-bar">
+        <div class="scanner-bottom-actions-row">
+          <button type="button" class="scanner-secondary-btn" id="scanner-btn-recalc" title="Recalculate points via ScoringEngine">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            <span>Recalculate</span>
+          </button>
+          <button type="button" class="scanner-secondary-btn" id="scanner-btn-reset-overrides" title="Reset all manual overrides to player kill sum">
+            <span>Reset Overrides</span>
+          </button>
+        </div>
+        <div class="scanner-bottom-actions-row">
+          <button type="button" class="scanner-main-upload-btn" id="scanner-btn-upload-all">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            <span>Upload All Screenshots</span>
+          </button>
+          <button type="button" class="scanner-save-results-btn" id="scanner-btn-save-results">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Confirm &amp; Save Results</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Slot List Modal -->
+      <div class="scanner-modal-overlay" id="scanner-slotlist-modal">
+        <div class="scanner-modal-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <h3 class="scanner-modal-title" style="margin-bottom: 0;">Saved Slot Lists</h3>
+            <button type="button" class="icon-btn" id="scanner-btn-close-sl-modal">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <p class="scanner-modal-desc">Manage reusable lobby rosters saved for your tournaments.</p>
+          <div id="scanner-slotlists-modal-list" style="max-height: 280px; overflow-y: auto; margin-bottom: 16px;"></div>
+        </div>
       </div>
     </section>
 
@@ -912,7 +1124,14 @@
             </div>
           </div>
 
-          <button type="submit" class="form-submit" id="btn-continue-calculate">Continue</button>
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button type="button" class="form-submit" id="btn-open-scanner-from-setup" style="flex: 1; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); margin-top: 0; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);">
+              ✨ AI Scanner
+            </button>
+            <button type="submit" class="form-submit" id="btn-continue-calculate" style="flex: 1; margin-top: 0;">
+              Manual Entry
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -926,9 +1145,12 @@
             <h2 class="modal-title" id="me-title" style="margin-bottom: 2px;">Match 1 Results</h2>
             <span id="me-multiplier-badge" class="td-badge td-badge--gold" style="font-size: 11px;">1x Multiplier</span>
           </div>
-          <button type="button" class="icon-btn" id="btn-close-match-entry" aria-label="Close">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="scanner-slotlist-btn" id="btn-open-scanner-from-me" style="padding: 4px 10px; font-size: 11px;">✨ AI Scanner</button>
+            <button type="button" class="icon-btn" id="btn-close-match-entry" aria-label="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
         </div>
         <p style="font-size: var(--fs-xs); color: var(--text-muted); margin-bottom: 8px;">
           Enter Position and Kills. Points are dynamically calculated by the ScoringEngine.
@@ -2100,6 +2322,8 @@
   <script src="scripts/local-db.js?v=1.0.4"></script>
   <!-- AI Service (Slot List Extraction) -->
   <script src="scripts/ai/ai-service.js?v=1.0.4"></script>
+  <!-- AI Result Scanner & Slot List Manager Module -->
+  <script src="scripts/ai/ai-scanner.js?v=1.0.4"></script>
   <!-- Design System & Point Table Generator Modules -->
   <script src="scripts/design/template-variables.js?v=1.0.4"></script>
   <script src="scripts/design/template-store.js?v=1.0.4"></script>

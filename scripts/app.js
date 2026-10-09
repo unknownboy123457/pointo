@@ -17,7 +17,7 @@
   const APP_NAME = 'LRD PointCalc';
   const APP_VERSION = '1.0.0';
 
-  const PROTECTED_SCREENS = ['home', 'tournaments', 'design', 'tournament-dashboard', 'tournament-detail', 'account'];
+  const PROTECTED_SCREENS = ['home', 'tournaments', 'design', 'tournament-dashboard', 'tournament-detail', 'account', 'ai-scanner'];
 
   // ========================================
   // APPLICATION STATE
@@ -230,7 +230,7 @@
     if (targetNav) targetNav.classList.add('active');
 
     // UI visibility controls
-    if (screenId === 'login' || screenId === 'splash') {
+    if (screenId === 'login' || screenId === 'splash' || screenId === 'ai-scanner') {
       if (appModeHeader) appModeHeader.style.display = 'none';
       if (appShellEl) appShellEl.classList.remove('has-mode-header');
       if (bottomNav) bottomNav.style.display = 'none';
@@ -512,7 +512,45 @@
       navigateTo('design');
     }
   });
-  btnActionSlots?.addEventListener('click', () => showToast('Slot List — Coming Soon'));
+  btnActionSlots?.addEventListener('click', () => {
+    if (activeTournament && window.AIScanner) {
+      window.AIScanner.open({
+        tournamentId: activeTournament.id,
+        ownerUserId: currentUser.id,
+      });
+    } else {
+      showToast('Select a tournament first');
+    }
+  });
+
+  // Launch AI scanner from setup calculate modal
+  document.getElementById('btn-open-scanner-from-setup')?.addEventListener('click', () => {
+    const matchNum = parseInt(calcMatchNumber?.value, 10) || 1;
+    closeSetupCalculate();
+    if (activeTournament && window.AIScanner) {
+      window.AIScanner.open({
+        tournamentId: activeTournament.id,
+        matchNumber: matchNum,
+        multiplier: setupCalcMultiplier,
+        ownerUserId: currentUser.id,
+      });
+    }
+  });
+
+  // Launch AI scanner from match entry modal
+  document.getElementById('btn-open-scanner-from-me')?.addEventListener('click', () => {
+    closeMatchEntryModal();
+    if (activeTournament && activeMatch && window.AIScanner) {
+      window.AIScanner.open({
+        tournamentId: activeTournament.id,
+        matchNumber: activeMatch.match_number,
+        matchId: activeMatch.id,
+        multiplier: activeMatch.multiplier || 1,
+        ownerUserId: currentUser.id,
+      });
+    }
+  });
+
   btnActionCertificate?.addEventListener('click', () => showToast('Certificate — Coming Soon'));
 
   btnActionShare?.addEventListener('click', async () => {
@@ -2411,18 +2449,21 @@
     try {
       if (appVersionEl) appVersionEl.textContent = `Version ${APP_VERSION}`;
 
-      // Initialize Design Studio modules gracefully
+      // Initialize Design Studio & Scanner modules gracefully
       try {
         window.TemplateEditor?.init();
         window.DesignManager?.init(currentUser);
         window.TeamSimulator?.init();
+        window.AIScanner?.init();
       } catch (designInitErr) {
-        console.warn('LRD PointCalc: Design studio init note:', designInitErr);
+        console.warn('LRD PointCalc: Design/Scanner init note:', designInitErr);
       }
 
-      // Expose navigation for simulator integration
+      // Expose navigation for simulator and scanner integration
       window.openTournamentDashboard = openTournamentDashboard;
+      window.openTournamentTables = openTournamentTables;
       window.loadTournaments = loadTournaments;
+      window.navigateTo = navigateTo;
 
       setupSupabaseAuthListener();
       await checkInitialSession();

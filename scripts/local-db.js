@@ -14,6 +14,7 @@
     PLAYERS: 'lrd_local_players',
     MATCHES: 'lrd_local_matches',
     RESULTS: 'lrd_local_match_results',
+    SLOT_LISTS: 'lrd_local_slot_lists',
   };
 
   /**
@@ -472,6 +473,102 @@
         return this.getMatchLeaderboard(matchId, scoringConfig);
       }
       return this.getTournamentLeaderboard(tournamentId, scoringConfig);
+    },
+    // ----------------------------------------------------------------
+    // SLOT LIST MANAGEMENT (Saved & Reusable Rosters)
+    // ----------------------------------------------------------------
+
+    /**
+     * Get all saved slot lists for an authenticated user
+     */
+    getSlotLists(ownerUserId) {
+      if (!ownerUserId) return [];
+      const all = readCollection(KEYS.SLOT_LISTS);
+      return all
+        .filter((sl) => sl.owner_user_id === ownerUserId)
+        .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+    },
+
+    /**
+     * Get a single saved slot list by ID
+     */
+    getSlotListById(id, ownerUserId) {
+      if (!id) return null;
+      const all = readCollection(KEYS.SLOT_LISTS);
+      if (ownerUserId) {
+        return all.find((sl) => sl.id === id && sl.owner_user_id === ownerUserId) || null;
+      }
+      return all.find((sl) => sl.id === id) || null;
+    },
+
+    /**
+     * Save a slot list to local storage
+     */
+    saveSlotList(ownerUserId, { name, slots, notes = '', tournament_id = null }) {
+      if (!ownerUserId || !name) return null;
+      const now = new Date().toISOString();
+      const newSlotList = {
+        id: generateId('slotlist'),
+        owner_user_id: ownerUserId,
+        name: String(name).trim(),
+        slots: Array.isArray(slots) ? slots : [],
+        notes: String(notes || '').trim(),
+        tournament_id: tournament_id || null,
+        created_at: now,
+        updated_at: now,
+      };
+
+      const all = readCollection(KEYS.SLOT_LISTS);
+      all.unshift(newSlotList);
+      writeCollection(KEYS.SLOT_LISTS, all);
+      console.log('LocalDatabase: Saved slot list:', newSlotList.id, 'name:', newSlotList.name);
+      return newSlotList;
+    },
+
+    /**
+     * Update an existing slot list
+     */
+    updateSlotList(id, ownerUserId, updates = {}) {
+      if (!id || !ownerUserId) return null;
+      const all = readCollection(KEYS.SLOT_LISTS);
+      const idx = all.findIndex((sl) => sl.id === id && sl.owner_user_id === ownerUserId);
+      if (idx === -1) return null;
+
+      all[idx] = {
+        ...all[idx],
+        ...updates,
+        updated_at: new Date().toISOString(),
+      };
+      writeCollection(KEYS.SLOT_LISTS, all);
+      return all[idx];
+    },
+
+    /**
+     * Duplicate a saved slot list
+     */
+    duplicateSlotList(id, ownerUserId) {
+      const original = this.getSlotListById(id, ownerUserId);
+      if (!original) return null;
+
+      return this.saveSlotList(ownerUserId, {
+        name: `${original.name} (Copy)`,
+        slots: JSON.parse(JSON.stringify(original.slots || [])),
+        notes: original.notes,
+        tournament_id: original.tournament_id,
+      });
+    },
+
+    /**
+     * Delete a saved slot list
+     */
+    deleteSlotList(id, ownerUserId) {
+      if (!id || !ownerUserId) return false;
+      const all = readCollection(KEYS.SLOT_LISTS);
+      const filtered = all.filter((sl) => !(sl.id === id && sl.owner_user_id === ownerUserId));
+      if (filtered.length === all.length) return false;
+      writeCollection(KEYS.SLOT_LISTS, filtered);
+      console.log('LocalDatabase: Deleted slot list:', id);
+      return true;
     },
   };
 
