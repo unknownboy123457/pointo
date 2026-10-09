@@ -253,12 +253,23 @@
     // Mode state synchronization
     if (screenId === 'design') {
       currentMode = 'studio';
-      if (appShellEl) appShellEl.classList.add('mode-studio');
+      if (appShellEl) {
+        appShellEl.classList.add('mode-studio');
+        appShellEl.classList.remove('mode-scanner');
+      }
       if (modeBtnStudio) modeBtnStudio.classList.add('active');
       if (modeBtnTournament) modeBtnTournament.classList.remove('active');
+    } else if (screenId === 'ai-scanner') {
+      if (appShellEl) {
+        appShellEl.classList.add('mode-scanner');
+        appShellEl.classList.remove('mode-studio');
+      }
     } else if (['home', 'tournaments', 'tournament-dashboard', 'tournament-detail', 'account'].includes(screenId)) {
       currentMode = 'tournament';
-      if (appShellEl) appShellEl.classList.remove('mode-studio');
+      if (appShellEl) {
+        appShellEl.classList.remove('mode-studio');
+        appShellEl.classList.remove('mode-scanner');
+      }
       if (modeBtnTournament) modeBtnTournament.classList.add('active');
       if (modeBtnStudio) modeBtnStudio.classList.remove('active');
       lastTournamentScreen = screenId;
@@ -2512,6 +2523,22 @@
 
       setupSupabaseAuthListener();
       await checkInitialSession();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('autoGuest') === '1' && !currentUser.isAuthenticated) {
+        handleGuestLogin();
+      }
+      if (urlParams.get('screen')) {
+        setTimeout(() => {
+          const scr = urlParams.get('screen');
+          if (scr === 'ai-scanner') {
+            const tourn = resolveOrCreateActiveTournament();
+            window.AIScanner?.open({ tournamentId: tourn ? tourn.id : null, ownerUserId: currentUser.id });
+          } else {
+            navigateTo(scr);
+          }
+        }, 350);
+      }
     } catch (startupErr) {
       console.error('LRD PointCalc: Critical startup error:', startupErr);
       clearSession();

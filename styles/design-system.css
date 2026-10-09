@@ -178,9 +178,18 @@ img { display: block; max-width: 100%; }
   --top-bar-height: 52px;
 }
 
+.app-shell.mode-scanner {
+  max-width: 100%;
+  width: 100%;
+}
+
 @media (min-width: 768px) {
   .app-shell.mode-studio {
     max-width: 1200px;
+  }
+  .app-shell.mode-scanner {
+    max-width: 860px;
+    margin: 0 auto;
   }
 }
 
@@ -198,7 +207,8 @@ img { display: block; max-width: 100%; }
 .screen.active { opacity: 1; visibility: visible; }
 
 #screen-login,
-#screen-splash {
+#screen-splash,
+#screen-ai-scanner {
   top: 0 !important;
   bottom: 0 !important;
 }

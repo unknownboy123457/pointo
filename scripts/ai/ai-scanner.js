@@ -92,14 +92,14 @@
         this.switchMode('manual');
       });
 
-      // Tutorial play button
+      // Tutorial banner click
       document.getElementById('scanner-btn-tutorial')?.addEventListener('click', () => {
         if (window.showToast) {
-          window.showToast('Guide: 1. Upload screenshots. 2. Verify categories. 3. Tap Analyze. 4. Review 12 slots & points. 5. Confirm & Save.');
+          window.showToast('Tutorial: 1. Upload lobby & result screenshots. 2. Verify roster. 3. Enter kills & placements. 4. Confirm & Save Results.');
         }
       });
 
-      // Unified File input & Dropzone
+      // Unified File input
       const unifiedFileInput = document.getElementById('scanner-unified-file-input');
       unifiedFileInput?.addEventListener('change', (e) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -108,49 +108,26 @@
         }
       });
 
-      document.getElementById('scanner-btn-add-screenshots')?.addEventListener('click', () => {
-        unifiedFileInput?.click();
-      });
-      document.getElementById('scanner-btn-add-more')?.addEventListener('click', () => {
-        unifiedFileInput?.click();
-      });
-
-      document.getElementById('scanner-btn-clear-all')?.addEventListener('click', () => {
-        this.clearAllScreenshots();
+      // Sticky "Upload all screenshots" button (matching reference)
+      document.getElementById('scanner-btn-ref-upload-all')?.addEventListener('click', () => {
+        if (uploadedScreenshots.length === 0) {
+          unifiedFileInput?.click();
+        } else {
+          this.processAllScreenshots();
+        }
       });
 
-      // Drag and drop on unified dropzone
-      const dropzone = document.getElementById('scanner-unified-dropzone');
-      if (dropzone) {
-        ['dragenter', 'dragover'].forEach((evName) => {
-          dropzone.addEventListener(evName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropzone.classList.add('drag-active');
-          });
-        });
-
-        ['dragleave', 'drop'].forEach((evName) => {
-          dropzone.addEventListener(evName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropzone.classList.remove('drag-active');
-          });
-        });
-
-        dropzone.addEventListener('drop', (e) => {
-          if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            this.addScreenshots(Array.from(e.dataTransfer.files));
+      // "Enter player kills" action pill button
+      document.getElementById('scanner-btn-enter-kills')?.addEventListener('click', () => {
+        const panel = document.getElementById('scanner-player-kills-panel');
+        if (panel) {
+          const isVisible = panel.style.display !== 'none';
+          panel.style.display = isVisible ? 'none' : 'block';
+          if (!isVisible) {
+            this.renderPlayerKillsPanel();
+            panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
-        });
-      }
-
-      // Analyze All Screenshots CTA buttons
-      document.getElementById('scanner-btn-analyze-all')?.addEventListener('click', () => {
-        this.processAllScreenshots();
-      });
-      document.getElementById('scanner-btn-analyze-bottom')?.addEventListener('click', () => {
-        this.processAllScreenshots();
+        }
       });
 
       // Remember Lobby switch
@@ -1120,11 +1097,24 @@
     // ==================================================================
     render() {
       this.renderUnifiedUploads();
+      this.renderLobbyPreviews();
+      this.renderResultsPreviews();
+      this.renderCompactTeamResults();
       this.renderSlotJumpBar();
       this.renderUnassignedPlayers();
       this.render12SlotsList();
-      this.render12ResultsList();
       this.renderStandingsPreview();
+      this.updateUploadButtonLabel();
+    },
+
+    updateUploadButtonLabel() {
+      const labelEl = document.getElementById('scanner-ref-upload-label');
+      if (!labelEl) return;
+      if (uploadedScreenshots.length === 0) {
+        labelEl.textContent = 'Upload all screenshots';
+      } else {
+        labelEl.textContent = `Analyze ${uploadedScreenshots.length} Screenshot${uploadedScreenshots.length > 1 ? 's' : ''}`;
+      }
     },
 
     renderWarnings(warningList) {
@@ -1147,6 +1137,287 @@
         </ul>
       `;
       container.appendChild(banner);
+    },
+
+    // Horizontal Lobby Previews matching reference screenshot
+    renderLobbyPreviews() {
+      const container = document.getElementById('scanner-lobby-previews');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const lobbyShots = uploadedScreenshots.filter((s) => s.category === 'slot_list');
+
+      if (lobbyShots.length === 0) {
+        // Render 2 reference preview cards (Slot 01, Slot 02) matching screenshot
+        const ph1 = document.createElement('div');
+        ph1.className = 'scanner-preview-card';
+        ph1.innerHTML = `
+          <div class="scanner-preview-img-wrap" title="Tap to upload lobby screenshot">
+            <div class="scanner-preview-empty-tile">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+              </svg>
+              <span>+ Add Lobby Screenshot</span>
+            </div>
+          </div>
+          <div class="scanner-preview-footer">
+            <span class="scanner-preview-slot-label">Slot 01</span>
+            <div class="scanner-preview-footer-actions">
+              <button type="button" class="scanner-preview-update-btn">Upload</button>
+            </div>
+          </div>
+        `;
+        ph1.querySelector('.scanner-preview-img-wrap')?.addEventListener('click', () => {
+          document.getElementById('scanner-unified-file-input')?.click();
+        });
+        ph1.querySelector('.scanner-preview-update-btn')?.addEventListener('click', () => {
+          document.getElementById('scanner-unified-file-input')?.click();
+        });
+        container.appendChild(ph1);
+
+        const ph2 = document.createElement('div');
+        ph2.className = 'scanner-preview-card';
+        ph2.style.opacity = '0.65';
+        ph2.innerHTML = `
+          <div class="scanner-preview-img-wrap" title="Tap to upload lobby screenshot">
+            <div class="scanner-preview-empty-tile">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              <span>Lobby Slot 02</span>
+            </div>
+          </div>
+          <div class="scanner-preview-footer">
+            <span class="scanner-preview-slot-label">Slot 02</span>
+            <div class="scanner-preview-footer-actions">
+              <button type="button" class="scanner-preview-update-btn">Upload</button>
+            </div>
+          </div>
+        `;
+        ph2.addEventListener('click', () => {
+          document.getElementById('scanner-unified-file-input')?.click();
+        });
+        container.appendChild(ph2);
+        return;
+      }
+
+      // Render actual uploaded lobby screenshots
+      lobbyShots.forEach((img, idx) => {
+        const card = document.createElement('div');
+        card.className = 'scanner-preview-card';
+        const slotLabel = `Slot ${String(idx + 1).padStart(2, '0')}`;
+        card.innerHTML = `
+          <div class="scanner-preview-img-wrap" title="Tap to replace">
+            <img src="${img.previewUrl}" alt="${escapeHtml(img.name)}" class="scanner-preview-img" />
+            <span class="scanner-preview-overlay-badge">Tap to update</span>
+          </div>
+          <div class="scanner-preview-footer">
+            <span class="scanner-preview-slot-label">${slotLabel}</span>
+            <div class="scanner-preview-footer-actions">
+              <button type="button" class="scanner-preview-update-btn" data-img-id="${img.id}">Update</button>
+              <button type="button" class="scanner-preview-del-btn" title="Delete" data-img-id="${img.id}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        `;
+
+        card.querySelector('.scanner-preview-img-wrap')?.addEventListener('click', () => {
+          document.getElementById('scanner-unified-file-input')?.click();
+        });
+        card.querySelector('.scanner-preview-update-btn')?.addEventListener('click', () => {
+          document.getElementById('scanner-unified-file-input')?.click();
+        });
+        card.querySelector('.scanner-preview-del-btn')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.removeScreenshot(img.id);
+        });
+
+        container.appendChild(card);
+      });
+
+      // Add more tile at end of horizontal scroll
+      const addTile = document.createElement('div');
+      addTile.className = 'scanner-preview-add-tile';
+      addTile.innerHTML = `
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>+ Add</span>
+      `;
+      addTile.addEventListener('click', () => {
+        document.getElementById('scanner-unified-file-input')?.click();
+      });
+      container.appendChild(addTile);
+    },
+
+    // Horizontal Result Previews matching reference screenshot
+    renderResultsPreviews() {
+      const container = document.getElementById('scanner-results-previews');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const resShots = uploadedScreenshots.filter((s) => s.category === 'end_result');
+
+      if (resShots.length === 0) {
+        const ph = document.createElement('div');
+        ph.className = 'scanner-preview-card';
+        ph.style.flex = '1 1 100%';
+        ph.innerHTML = `
+          <div class="scanner-preview-img-wrap" style="height: 72px;" title="Tap to upload result screenshot">
+            <div class="scanner-preview-empty-tile" style="flex-direction: row; gap: 10px;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+              </svg>
+              <span>+ Add Match Result Screenshot</span>
+            </div>
+            <span class="scanner-preview-overlay-badge">Tap to update</span>
+          </div>
+        `;
+        ph.addEventListener('click', () => {
+          document.getElementById('scanner-unified-file-input')?.click();
+        });
+        container.appendChild(ph);
+        return;
+      }
+
+      resShots.forEach((img, idx) => {
+        const card = document.createElement('div');
+        card.className = 'scanner-preview-card';
+        card.style.flex = '1 1 100%';
+        card.innerHTML = `
+          <div class="scanner-preview-img-wrap" style="height: 80px;" title="Tap to replace">
+            <img src="${img.previewUrl}" alt="${escapeHtml(img.name)}" class="scanner-preview-img" />
+            <span class="scanner-preview-overlay-badge">Tap to update</span>
+          </div>
+          <div class="scanner-preview-footer">
+            <span class="scanner-preview-slot-label">Result Screenshot ${idx + 1}</span>
+            <div class="scanner-preview-footer-actions">
+              <button type="button" class="scanner-preview-del-btn" title="Delete">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        `;
+        card.querySelector('.scanner-preview-img-wrap')?.addEventListener('click', () => {
+          document.getElementById('scanner-unified-file-input')?.click();
+        });
+        card.querySelector('.scanner-preview-del-btn')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.removeScreenshot(img.id);
+        });
+        container.appendChild(card);
+      });
+    },
+
+    // Compact Team Result Rows matching reference screenshot (e.g. 07, 7. TEAM FLUG, 19)
+    renderCompactTeamResults() {
+      const container = document.getElementById('scanner-compact-team-results');
+      if (!container) return;
+      container.innerHTML = '';
+
+      // Display up to 6 prominent preview rows
+      const displayResults = results.slice(0, 6);
+
+      displayResults.forEach((res, idx) => {
+        const slot = slots[idx];
+        const slotNumStr = String(res.slot).padStart(2, '0');
+        const teamName = slot ? slot.teamName : res.teamName || `Team ${res.slot}`;
+        const kills = Number(res.totalKills) || 0;
+
+        const row = document.createElement('div');
+        row.className = 'scanner-ref-team-row';
+        row.innerHTML = `
+          <span class="scanner-ref-slot-pill">${slotNumStr}</span>
+          <span class="scanner-ref-team-name">${escapeHtml(res.slot)}. ${escapeHtml(teamName)}</span>
+          <span class="scanner-ref-kills-pill">${kills}</span>
+        `;
+
+        row.addEventListener('click', () => {
+          const panel = document.getElementById('scanner-player-kills-panel');
+          if (panel) {
+            panel.style.display = 'block';
+            this.renderPlayerKillsPanel(idx);
+            panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        });
+
+        container.appendChild(row);
+      });
+    },
+
+    // Inline Player Kills Stepper Panel
+    renderPlayerKillsPanel(focusSlotIdx = null) {
+      const panel = document.getElementById('scanner-player-kills-panel');
+      if (!panel) return;
+      panel.innerHTML = `
+        <div class="scanner-kills-panel-header">
+          <span>✏️ Enter Individual Player Kills</span>
+          <button type="button" class="icon-btn" id="scanner-btn-close-kills-panel" style="font-size: 16px; color: #cbd5e1; cursor: pointer;">✕</button>
+        </div>
+      `;
+
+      panel.querySelector('#scanner-btn-close-kills-panel')?.addEventListener('click', () => {
+        panel.style.display = 'none';
+      });
+
+      const slotsToRender = focusSlotIdx !== null ? [focusSlotIdx] : slots.map((_, i) => i);
+
+      slotsToRender.forEach((slotIdx) => {
+        const slot = slots[slotIdx];
+        const res = results[slotIdx];
+        if (!slot || !res) return;
+
+        const group = document.createElement('div');
+        group.className = 'scanner-kills-team-group';
+        group.innerHTML = `
+          <div class="scanner-kills-group-title">
+            <span>Slot ${String(slot.slot).padStart(2, '0')} • ${escapeHtml(slot.teamName)}</span>
+            <span class="scanner-ref-kills-pill">${res.totalKills} Kills</span>
+          </div>
+          <div class="scanner-kills-players-container">
+            ${slot.players.map((p, pIdx) => `
+              <div class="scanner-kills-player-row">
+                <span class="scanner-kills-player-name">${pIdx + 1}. ${escapeHtml(p.name)}</span>
+                <div class="scanner-kills-input-wrap">
+                  <button type="button" class="scanner-kills-stepper-btn btn-minus" data-s-idx="${slotIdx}" data-p-idx="${pIdx}">−</button>
+                  <input type="number" min="0" max="99" class="scanner-kills-num-input" value="${Number(p.kills) || 0}" data-s-idx="${slotIdx}" data-p-idx="${pIdx}" />
+                  <button type="button" class="scanner-kills-stepper-btn btn-plus" data-s-idx="${slotIdx}" data-p-idx="${pIdx}">+</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+
+        group.querySelectorAll('.btn-minus').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const sIdx = parseInt(btn.dataset.sIdx, 10);
+            const pIdx = parseInt(btn.dataset.pIdx, 10);
+            const cur = Number(slots[sIdx].players[pIdx].kills) || 0;
+            this.updatePlayerKill(sIdx, pIdx, Math.max(0, cur - 1));
+            this.renderPlayerKillsPanel(focusSlotIdx);
+          });
+        });
+
+        group.querySelectorAll('.btn-plus').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const sIdx = parseInt(btn.dataset.sIdx, 10);
+            const pIdx = parseInt(btn.dataset.pIdx, 10);
+            const cur = Number(slots[sIdx].players[pIdx].kills) || 0;
+            this.updatePlayerKill(sIdx, pIdx, cur + 1);
+            this.renderPlayerKillsPanel(focusSlotIdx);
+          });
+        });
+
+        group.querySelectorAll('.scanner-kills-num-input').forEach((inp) => {
+          inp.addEventListener('change', (e) => {
+            const sIdx = parseInt(e.target.dataset.sIdx, 10);
+            const pIdx = parseInt(e.target.dataset.pIdx, 10);
+            this.updatePlayerKill(sIdx, pIdx, e.target.value);
+            this.renderPlayerKillsPanel(focusSlotIdx);
+          });
+        });
+
+        panel.appendChild(group);
+      });
     },
 
     renderSlotJumpBar() {
@@ -1215,63 +1486,81 @@
       });
     },
 
+    // Compact 12-Slot Review Cards matching Section 2 requirements
     render12SlotsList() {
       const container = document.getElementById('scanner-12slots-container');
       if (!container) return;
       container.innerHTML = '';
 
       slots.forEach((slot, slotIdx) => {
-        const isExpanded = expandedSlotCards.has(slotIdx) || slotIdx === 0; // first card expanded by default
+        const isExpanded = expandedSlotCards.has(slotIdx);
+        const res = results[slotIdx];
         const pCount = slot.players.length;
+        const playerNamesPreview = slot.players.map((p) => p.name).join(', ') || 'No players added';
 
         const card = document.createElement('div');
-        card.className = `scanner-12slot-card ${slot.isActive ? '' : 'is-inactive'} ${isExpanded ? 'is-expanded' : ''}`;
+        card.className = `scanner-compact-slot-card ${slot.isActive ? '' : 'is-inactive'}`;
         card.id = `scanner-slot-card-${slotIdx}`;
 
         card.innerHTML = `
-          <div class="scanner-12slot-header" data-slot-idx="${slotIdx}">
-            <div class="scanner-12slot-header-left">
-              <span class="scanner-slot-badge">Slot ${String(slot.slot).padStart(2, '0')}</span>
-              <input type="text" class="scanner-team-name-input" value="${escapeHtml(slot.teamName)}" placeholder="Team Name" data-slot-idx="${slotIdx}" />
+          <div class="scanner-compact-slot-header">
+            <div class="scanner-compact-header-left">
+              <span class="scanner-slot-num-badge">Slot ${String(slot.slot).padStart(2, '0')}</span>
+              <span class="scanner-compact-team-title">${escapeHtml(slot.teamName)}</span>
             </div>
-            <div class="scanner-12slot-header-right">
-              <span class="scanner-slot-count-badge">${pCount}P</span>
-              <button type="button" class="scanner-collapse-toggle-btn" aria-label="Toggle details">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
+            <div class="scanner-compact-header-right">
+              <span class="scanner-pcount-badge">${pCount}P</span>
+              ${res ? `<span class="scanner-ref-kills-pill" style="font-size: 11px; padding: 2px 8px;">${res.totalKills}K</span>` : ''}
             </div>
           </div>
 
-          <div class="scanner-12slot-body" style="display: ${isExpanded ? 'block' : 'none'};">
-            <div class="scanner-players-list" id="scanner-players-list-${slotIdx}">
-              ${slot.players.map((p, pIdx) => `
-                <div class="scanner-player-row">
-                  <span class="scanner-player-idx">${pIdx + 1}.</span>
-                  <input type="text" class="scanner-player-name-input" value="${escapeHtml(p.name)}" placeholder="Player Name" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}" />
-                  <select class="scanner-player-move-select" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}">
-                    <option value="">Move...</option>
-                    ${slots.map((s, targetIdx) => targetIdx !== slotIdx ? `<option value="${targetIdx}">Slot ${String(s.slot).padStart(2, '0')}</option>` : '').join('')}
-                  </select>
-                  <button type="button" class="scanner-player-del-btn" title="Remove" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}">×</button>
-                </div>
-              `).join('')}
-            </div>
+          <div class="scanner-compact-roster-preview" title="${escapeHtml(playerNamesPreview)}">
+            ${escapeHtml(playerNamesPreview)}
+          </div>
 
-            <div class="scanner-slot-actions-bar">
-              <button type="button" class="scanner-btn-add-p" data-slot-idx="${slotIdx}">+ Add Player</button>
-              <div style="display: flex; gap: 6px;">
-                <button type="button" class="scanner-btn-clear-slot" data-slot-idx="${slotIdx}">Clear Slot</button>
-                <button type="button" class="scanner-btn-toggle-active" data-slot-idx="${slotIdx}">
-                  ${slot.isActive ? 'Mark Inactive' : 'Restore Slot'}
-                </button>
+          <button type="button" class="scanner-btn-expand-slot" data-slot-idx="${slotIdx}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              ${isExpanded ? '<polyline points="18 15 12 9 6 15"/>' : '<polyline points="6 9 12 15 18 9"/>'}
+            </svg>
+            <span>${isExpanded ? 'Collapse' : 'Expand / Edit'}</span>
+          </button>
+
+          ${isExpanded ? `
+            <div class="scanner-slot-expanded-body">
+              <div class="scanner-team-name-row">
+                <input type="text" class="team-name-inp" value="${escapeHtml(slot.teamName)}" placeholder="Team Name" data-slot-idx="${slotIdx}" />
+              </div>
+
+              <div class="scanner-players-list-edit" style="display: flex; flex-direction: column; gap: 6px;">
+                ${slot.players.map((p, pIdx) => `
+                  <div class="scanner-player-edit-row">
+                    <span style="font-size: 11px; color: #94a3b8; width: 14px;">${pIdx + 1}.</span>
+                    <input type="text" class="player-name-inp" value="${escapeHtml(p.name)}" placeholder="Player Name" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}" />
+                    <input type="number" min="0" class="player-kills-inp" value="${Number(p.kills) || 0}" title="Kills" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}" />
+                    <select class="player-move-sel" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}">
+                      <option value="">Move...</option>
+                      ${slots.map((s, targetIdx) => targetIdx !== slotIdx ? `<option value="${targetIdx}">Slot ${String(s.slot).padStart(2, '0')}</option>` : '').join('')}
+                    </select>
+                    <button type="button" class="player-del-btn" title="Remove" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}">×</button>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div class="scanner-slot-actions-bar">
+                <button type="button" class="scanner-btn-add-p" data-slot-idx="${slotIdx}">+ Add Player</button>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" class="scanner-btn-clear-slot" data-slot-idx="${slotIdx}">Clear Slot</button>
+                  <button type="button" class="scanner-btn-toggle-active" data-slot-idx="${slotIdx}">
+                    ${slot.isActive ? 'Mark Inactive' : 'Restore Slot'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          ` : ''}
         `;
 
-        // Accordion toggle
-        card.querySelector('.scanner-collapse-toggle-btn')?.addEventListener('click', (e) => {
-          e.stopPropagation();
+        // Expand / Collapse toggle
+        card.querySelector('.scanner-btn-expand-slot')?.addEventListener('click', () => {
           if (expandedSlotCards.has(slotIdx)) {
             expandedSlotCards.delete(slotIdx);
           } else {
@@ -1281,20 +1570,28 @@
         });
 
         // Team Name input change
-        card.querySelector('.scanner-team-name-input')?.addEventListener('change', (e) => {
+        card.querySelector('.team-name-inp')?.addEventListener('change', (e) => {
           this.updateTeamName(slotIdx, e.target.value);
         });
 
         // Player Name input changes
-        card.querySelectorAll('.scanner-player-name-input').forEach((inp) => {
+        card.querySelectorAll('.player-name-inp').forEach((inp) => {
           inp.addEventListener('change', (e) => {
             const pIdx = parseInt(e.target.dataset.pIdx, 10);
             this.updatePlayerName(slotIdx, pIdx, e.target.value);
           });
         });
 
+        // Player Kills input changes
+        card.querySelectorAll('.player-kills-inp').forEach((inp) => {
+          inp.addEventListener('change', (e) => {
+            const pIdx = parseInt(e.target.dataset.pIdx, 10);
+            this.updatePlayerKill(slotIdx, pIdx, e.target.value);
+          });
+        });
+
         // Move Player select
-        card.querySelectorAll('.scanner-player-move-select').forEach((sel) => {
+        card.querySelectorAll('.player-move-sel').forEach((sel) => {
           sel.addEventListener('change', (e) => {
             const pIdx = parseInt(e.target.dataset.pIdx, 10);
             const targetSlotIdx = parseInt(e.target.value, 10);
@@ -1305,7 +1602,7 @@
         });
 
         // Remove Player button
-        card.querySelectorAll('.scanner-player-del-btn').forEach((btn) => {
+        card.querySelectorAll('.player-del-btn').forEach((btn) => {
           btn.addEventListener('click', (e) => {
             const pIdx = parseInt(e.target.dataset.pIdx, 10);
             this.removePlayer(slotIdx, pIdx);
@@ -1332,104 +1629,13 @@
     },
 
     render12ResultsList() {
-      const container = document.getElementById('scanner-12results-container');
-      if (!container) return;
-      container.innerHTML = '';
-
-      results.forEach((res, slotIdx) => {
-        const slot = slots[slotIdx];
-        if (!slot) return;
-
-        const isExpanded = expandedResultCards.has(slotIdx) || slotIdx === 0;
-        const pts = this.getScoringBreakdown(res);
-        const isOverride = res.teamKillsOverride !== null;
-
-        const card = document.createElement('div');
-        card.className = `scanner-12result-card ${res.isExcluded ? 'is-excluded' : ''} ${res.warnings.length > 0 ? 'has-warning' : ''}`;
-        card.id = `scanner-res-card-${slotIdx}`;
-
-        card.innerHTML = `
-          <div class="scanner-12result-header">
-            <div class="scanner-12result-header-left">
-              <span class="scanner-slot-badge">Slot ${String(slot.slot).padStart(2, '0')}</span>
-              <span class="scanner-result-teamname">${escapeHtml(slot.teamName)}</span>
-              ${res.warnings.map((w) => `<span class="scanner-warning-tag">${escapeHtml(w)}</span>`).join('')}
-            </div>
-            <div class="scanner-12result-header-right">
-              <div class="scanner-place-input-group">
-                <span class="scanner-place-hash">#</span>
-                <input type="number" class="scanner-place-input" min="1" max="12" value="${res.placement || ''}" placeholder="-" data-slot-idx="${slotIdx}" />
-              </div>
-              <div class="scanner-kills-total-pill ${isOverride ? 'is-override' : ''}">
-                <span class="pill-dot"></span>
-                <span id="scanner-kills-count-${slotIdx}">${res.totalKills}</span> Kills
-              </div>
-            </div>
-          </div>
-
-          <div class="scanner-12result-body">
-            <!-- Individual Matched Players Kills -->
-            <div class="scanner-result-players-wrap">
-              <div class="scanner-result-players-title">Player Eliminations:</div>
-              <div class="scanner-result-players-grid">
-                ${slot.players.map((p, pIdx) => `
-                  <div class="scanner-player-kill-item">
-                    <span class="scanner-pk-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
-                    <input type="number" min="0" max="99" class="scanner-pk-input" value="${Number(p.kills) || 0}" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}" />
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-
-            <!-- Team Override & Points Summary Row -->
-            <div class="scanner-result-override-row">
-              <div class="scanner-override-controls">
-                <label class="scanner-override-label">Manual Override Team Kills:</label>
-                <input type="number" min="0" max="99" class="scanner-override-input" value="${isOverride ? res.totalKills : ''}" placeholder="${res.totalKills}" data-slot-idx="${slotIdx}" />
-                ${isOverride ? `<button type="button" class="scanner-btn-reset-ov" data-slot-idx="${slotIdx}">Reset</button>` : ''}
-              </div>
-              <div class="scanner-result-pts-tag">
-                ${pts.totalPoints} Points
-              </div>
-            </div>
-          </div>
-        `;
-
-        // Placement input change
-        card.querySelector('.scanner-place-input')?.addEventListener('change', (e) => {
-          this.updatePlacement(slotIdx, e.target.value);
-        });
-
-        // Player Kills input changes
-        card.querySelectorAll('.scanner-pk-input').forEach((inp) => {
-          inp.addEventListener('input', (e) => {
-            const pIdx = parseInt(e.target.dataset.pIdx, 10);
-            this.updatePlayerKill(slotIdx, pIdx, e.target.value);
-          });
-        });
-
-        // Team Override input change
-        card.querySelector('.scanner-override-input')?.addEventListener('change', (e) => {
-          if (e.target.value !== '') {
-            this.overrideTeamKills(slotIdx, e.target.value);
-          }
-        });
-
-        // Reset Override button
-        card.querySelector('.scanner-btn-reset-ov')?.addEventListener('click', () => {
-          this.resetTeamKillsOverride(slotIdx);
-        });
-
-        container.appendChild(card);
-      });
+      this.renderCompactTeamResults();
+      this.renderPlayerKillsPanel();
     },
 
     updateResultCardKillsDisplay(slotIdx) {
-      const res = results[slotIdx];
-      const countEl = document.getElementById(`scanner-kills-count-${slotIdx}`);
-      if (countEl && res) {
-        countEl.textContent = res.totalKills;
-      }
+      this.renderCompactTeamResults();
+      this.renderPlayerKillsPanel(slotIdx);
     },
 
     renderStandingsPreview() {
@@ -1440,7 +1646,7 @@
       // Compute scored entries
       const scoredList = results
         .filter((r) => !r.isExcluded)
-        .map((r, originalIdx) => {
+        .map((r) => {
           const breakdown = this.getScoringBreakdown(r);
           return {
             slot: r.slot,
@@ -1470,14 +1676,93 @@
           <td>${escapeHtml(row.teamName)}</td>
           <td>${row.placementPoints}</td>
           <td>${row.killPoints}</td>
-          <td>${row.multiplier}x</td>
-          <td><strong style="color: #c084fc;">${row.totalPoints}</strong></td>
+          <td><strong class="scanner-pts-gold">${row.totalPoints}</strong></td>
         `;
         tbody.appendChild(tr);
       });
     },
 
-    // Testing getters
+    // ==================================================================
+    // COMPATIBILITY & TESTING METHODS
+    // ==================================================================
+    setRoster(customRoster) {
+      if (!Array.isArray(customRoster)) return;
+      slots = [];
+      results = [];
+      customRoster.forEach((item, idx) => {
+        const slotNum = item.slot || (idx + 1);
+        const pList = Array.isArray(item.players)
+          ? item.players.map((p) => ({
+              id: p.id || 'p_' + Math.random().toString(36).substr(2, 6),
+              name: p.name || `Player ${slotNum}`,
+              kills: Number(p.kills) || 0,
+            }))
+          : [];
+
+        slots.push({
+          slot: slotNum,
+          teamId: item.teamId || null,
+          teamName: item.teamName || `Team ${slotNum}`,
+          players: pList,
+          isActive: item.isRemoved ? false : (item.isActive !== false),
+          isCleared: false,
+          source: 'Custom Roster',
+          status: 'verified',
+        });
+
+        results.push({
+          slot: slotNum,
+          teamId: item.teamId || null,
+          teamName: item.teamName || `Team ${slotNum}`,
+          placement: item.placement !== undefined ? item.placement : (idx + 1),
+          teamKillsOverride: item.teamKillsOverride !== undefined ? item.teamKillsOverride : null,
+          totalKills: item.totalKills !== undefined ? Number(item.totalKills) : pList.reduce((sum, p) => sum + p.kills, 0),
+          isExcluded: !!item.isRemoved,
+          warnings: [],
+        });
+      });
+      this.recalculateAll();
+      this.render();
+    },
+
+    getRoster() {
+      return slots.map((s, idx) => {
+        const r = results[idx] || {};
+        return {
+          slot: s.slot,
+          teamName: s.teamName,
+          players: s.players,
+          placement: r.placement,
+          teamKillsOverride: r.teamKillsOverride,
+          totalKills: r.totalKills,
+          isRemoved: !!r.isExcluded,
+        };
+      });
+    },
+
+    removeTeamFromCalc(slotIdx) {
+      if (results[slotIdx]) {
+        results[slotIdx].isExcluded = !results[slotIdx].isExcluded;
+        results[slotIdx].isRemoved = results[slotIdx].isExcluded;
+        this.recalculateAll();
+        this.render();
+      }
+    },
+
+    getDuplicatePlacements() {
+      const placementCount = new Map();
+      results.forEach((r) => {
+        if (r.placement && !r.isExcluded) {
+          placementCount.set(r.placement, (placementCount.get(r.placement) || 0) + 1);
+        }
+      });
+      const dupes = [];
+      placementCount.forEach((count, place) => {
+        if (count > 1) dupes.push(place);
+      });
+      return dupes;
+    },
+
     getSlots() {
       return slots;
     },
