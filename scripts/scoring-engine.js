@@ -340,6 +340,7 @@
     // Assign final rank
     return leaderboard.map((row, index) => ({
       ...row,
+      kills: row.totalKills,
       rank: index + 1,
     }));
   }

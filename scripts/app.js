@@ -49,9 +49,22 @@
   let editSelectedGameMode = 'squad';
   let editSelectedScoring = 'default';
 
+  // Application Mode State (Tournament vs Design Studio)
+  let currentMode = 'tournament'; // 'tournament' | 'studio'
+  let lastTournamentScreen = 'home';
+
   // ========================================
   // DOM REFERENCES
   // ========================================
+  const appShellEl = document.getElementById('app');
+  const appModeHeader = document.getElementById('app-mode-header');
+  const modeBtnTournament = document.getElementById('mode-btn-tournament');
+  const modeBtnStudio = document.getElementById('mode-btn-studio');
+  const modeHeaderEntitlement = document.getElementById('mode-header-entitlement');
+  const modeEntitlementLabel = document.getElementById('mode-entitlement-label');
+  const btnAvatarMode = document.getElementById('btn-avatar-mode');
+  const modeAvatarLetter = document.getElementById('mode-avatar-letter');
+
   const splashEl = document.getElementById('screen-splash');
   const loginScreen = document.getElementById('screen-login');
   const bottomNav = document.getElementById('bottom-nav');
@@ -164,6 +177,39 @@
   // ROUTE & ACCESS CONTROL
   // ========================================
 
+  function updateModeHeaderStatus() {
+    if (!currentUser) return;
+    const ent = window.TemplateStore?.getEntitlementStatus?.(currentUser) || { tier: 'free', label: 'FREE' };
+    if (modeEntitlementLabel) {
+      modeEntitlementLabel.textContent = ent.tier === 'pro' ? 'PRO ⚡' : 'FREE';
+    }
+    if (modeHeaderEntitlement) {
+      modeHeaderEntitlement.classList.toggle('pro', ent.tier === 'pro');
+    }
+    if (modeAvatarLetter) {
+      const initial = (currentUser.name || currentUser.email || 'O').trim().charAt(0).toUpperCase();
+      modeAvatarLetter.textContent = initial || '?';
+    }
+  }
+
+  function switchMode(targetMode) {
+    if (targetMode === currentMode) return;
+    if (targetMode === 'studio') {
+      if (currentScreen && currentScreen !== 'design') {
+        lastTournamentScreen = currentScreen;
+      }
+      navigateTo('design');
+    } else {
+      const screenToRestore = (activeTournament && ['tournament-dashboard', 'tournament-detail'].includes(lastTournamentScreen))
+        ? lastTournamentScreen
+        : (lastTournamentScreen || 'home');
+      navigateTo(screenToRestore);
+    }
+  }
+
+  window.switchMode = switchMode;
+  window.getCurrentMode = () => currentMode;
+
   function navigateTo(screenId) {
     if (PROTECTED_SCREENS.includes(screenId) && !currentUser.isAuthenticated) {
       console.warn(`LRD PointCalc: Access denied to "${screenId}". Redirecting to login.`);
@@ -178,22 +224,43 @@
     document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach((n) => n.classList.remove('active'));
 
-    const targetScreen = document.getElementById(`screen-${screenId}`);
     const targetNav = document.querySelector(`[data-screen="${screenId}"]`);
 
     if (targetScreen) targetScreen.classList.add('active');
     if (targetNav) targetNav.classList.add('active');
 
     // UI visibility controls
-    if (screenId === 'login') {
+    if (screenId === 'login' || screenId === 'splash') {
+      if (appModeHeader) appModeHeader.style.display = 'none';
+      if (appShellEl) appShellEl.classList.remove('has-mode-header');
       if (bottomNav) bottomNav.style.display = 'none';
       if (fabCreate) fabCreate.style.display = 'none';
-    } else if (screenId === 'tournament-detail' || screenId === 'tournament-dashboard') {
-      if (bottomNav) bottomNav.style.display = 'flex';
-      if (fabCreate) fabCreate.style.display = 'none';
     } else {
-      if (bottomNav) bottomNav.style.display = 'flex';
-      if (fabCreate) fabCreate.style.display = screenId === 'home' ? 'flex' : 'none';
+      if (appModeHeader) appModeHeader.style.display = 'flex';
+      if (appShellEl) appShellEl.classList.add('has-mode-header');
+      updateModeHeaderStatus();
+
+      if (screenId === 'tournament-detail' || screenId === 'tournament-dashboard') {
+        if (bottomNav) bottomNav.style.display = 'flex';
+        if (fabCreate) fabCreate.style.display = 'none';
+      } else {
+        if (bottomNav) bottomNav.style.display = 'flex';
+        if (fabCreate) fabCreate.style.display = screenId === 'home' ? 'flex' : 'none';
+      }
+    }
+
+    // Mode state synchronization
+    if (screenId === 'design') {
+      currentMode = 'studio';
+      if (appShellEl) appShellEl.classList.add('mode-studio');
+      if (modeBtnStudio) modeBtnStudio.classList.add('active');
+      if (modeBtnTournament) modeBtnTournament.classList.remove('active');
+    } else if (['home', 'tournaments', 'tournament-dashboard', 'tournament-detail', 'account'].includes(screenId)) {
+      currentMode = 'tournament';
+      if (appShellEl) appShellEl.classList.remove('mode-studio');
+      if (modeBtnTournament) modeBtnTournament.classList.add('active');
+      if (modeBtnStudio) modeBtnStudio.classList.remove('active');
+      lastTournamentScreen = screenId;
     }
 
     const scrollContainer = targetScreen?.querySelector('.screen-scroll');
@@ -214,6 +281,15 @@
       if (screen) navigateTo(screen);
     });
   });
+
+  // Mode Switcher Controls
+  modeBtnTournament?.addEventListener('click', () => switchMode('tournament'));
+  modeBtnStudio?.addEventListener('click', () => switchMode('studio'));
+  modeHeaderEntitlement?.addEventListener('click', () => {
+    if (currentMode !== 'studio') switchMode('studio');
+    window.DesignManager?.openPremiumModal?.();
+  });
+  btnAvatarMode?.addEventListener('click', () => navigateTo('account'));
 
   btnAvatarHome?.addEventListener('click', () => navigateTo('account'));
 

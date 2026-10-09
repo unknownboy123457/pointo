@@ -25,6 +25,52 @@
 
   <div id="app" class="app-shell">
 
+    <!-- ===== TOP-LEVEL MODE SWITCHER BAR ===== -->
+    <header id="app-mode-header" class="app-mode-header" style="display: none;" aria-label="Application Mode Switcher">
+      <div class="mode-header-brand">
+        <div class="mode-header-logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 010-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 000-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.24 7 20v2"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.24 17 20v2"/>
+            <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
+          </svg>
+        </div>
+        <span class="mode-header-brand-name">LRD <span>POINTCALC</span></span>
+      </div>
+
+      <nav class="mode-switcher-pill" aria-label="Application Mode Selector">
+        <button type="button" id="mode-btn-tournament" class="mode-pill-btn active" data-mode="tournament" aria-label="Tournament Mode">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M6 9H4.5a2.5 2.5 0 010-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 000-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
+          </svg>
+          <span>Tournament</span>
+        </button>
+        <button type="button" id="mode-btn-studio" class="mode-pill-btn" data-mode="studio" aria-label="Design Studio Mode">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+          <span>Design Studio</span>
+        </button>
+      </nav>
+
+      <div class="mode-header-actions">
+        <button type="button" id="mode-header-entitlement" class="mode-entitlement-badge" title="Esports Entitlement">
+          <span class="entitlement-status-dot"></span>
+          <span id="mode-entitlement-label">FREE</span>
+        </button>
+        <button type="button" id="btn-avatar-mode" class="mode-avatar-btn" aria-label="Account">
+          <span id="mode-avatar-letter">?</span>
+        </button>
+      </div>
+    </header>
+
     <!-- ===== SCREEN: SPLASH (Initial Loading) ===== -->
     <div id="screen-splash" aria-label="Loading LRD PointCalc">
       <div class="splash-content">
@@ -298,8 +344,82 @@
           </div>
         </div>
 
+        <!-- ===== DESIGN STUDIO LANDING SECTIONS: FREE, PREMIUM, IMPORT ===== -->
+        <div id="studio-sections-container" class="studio-sections-container">
+          <!-- 1. FREE SECTION -->
+          <section id="studio-section-free" class="studio-landing-section" aria-label="Free Templates">
+            <div class="studio-section-header">
+              <div class="studio-section-header-left">
+                <span class="studio-section-badge studio-badge-free">FREE</span>
+                <h2 class="studio-section-title">Ready-to-Use Templates</h2>
+              </div>
+              <span class="studio-section-subtitle">4:5 Esports Posters (1080×1350) • Standings &amp; Matches</span>
+            </div>
+            <div id="studio-grid-free" class="studio-templates-grid">
+              <!-- Dynamically populated free template cards -->
+            </div>
+          </section>
+
+          <!-- 2. PREMIUM SECTION -->
+          <section id="studio-section-premium" class="studio-landing-section" aria-label="Premium Templates">
+            <div class="studio-section-header">
+              <div class="studio-section-header-left">
+                <span class="studio-section-badge studio-badge-prem">PREMIUM 🔒</span>
+                <h2 class="studio-section-title">Broadcast-Grade Templates</h2>
+              </div>
+              <button type="button" class="studio-prem-info-link" id="studio-btn-prem-info" aria-label="Premium Information">
+                <span>Entitlement &amp; Perks</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </div>
+            <div id="studio-grid-premium" class="studio-templates-grid">
+              <!-- Dynamically populated premium template cards -->
+            </div>
+          </section>
+
+          <!-- 3. IMPORT SECTION -->
+          <section id="studio-section-import" class="studio-landing-section" aria-label="Import Templates">
+            <div class="studio-section-header">
+              <div class="studio-section-header-left">
+                <span class="studio-section-badge studio-badge-custom">IMPORT</span>
+                <h2 class="studio-section-title">Custom &amp; Imported Designs</h2>
+              </div>
+              <span class="studio-section-subtitle">Import .lrdtheme packages or PNG/JPG backgrounds</span>
+            </div>
+
+            <!-- Drag & Drop Upload Dropzone -->
+            <div id="studio-import-dropzone" class="studio-import-dropzone" tabindex="0" role="button" aria-label="Upload design or background file">
+              <div class="dropzone-icon">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+              </div>
+              <div class="dropzone-text">
+                <strong class="dropzone-primary-text">Click to choose or drag &amp; drop design files</strong>
+                <p class="dropzone-secondary-text">LRD theme packages (.lrdtheme, .json) or background images (PNG, JPG)</p>
+              </div>
+              <div class="dropzone-formats">
+                <span class="format-tag">.lrdtheme</span>
+                <span class="format-tag">.json</span>
+                <span class="format-tag">PNG</span>
+                <span class="format-tag">JPG / JPEG</span>
+              </div>
+              <button type="button" class="btn-dropzone-browse" id="btn-studio-browse-file">Browse File</button>
+            </div>
+
+            <!-- Custom / Imported Templates List -->
+            <div class="studio-custom-list-header">
+              <h3 class="studio-custom-heading">Your Saved Custom Themes</h3>
+              <span id="studio-custom-count-badge" class="custom-count-badge">0 Themes</span>
+            </div>
+            <div id="studio-grid-custom" class="studio-templates-grid">
+              <!-- Dynamically populated custom template cards -->
+            </div>
+          </section>
+        </div>
+
         <!-- Hidden input for design import -->
-        <input type="file" id="design-file-input" accept="image/png,image/jpeg,image/jpg" style="display: none;" />
+        <input type="file" id="design-file-input" accept=".lrdtheme,.json,image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
 
         <div class="bottom-spacer" style="height: 100px;"></div>
       </div>
@@ -1338,6 +1458,10 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
               <span>Save as New Custom Template</span>
             </button>
+            <button type="button" class="more-act-btn" id="more-action-export-theme">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Export .lrdtheme Package</span>
+            </button>
             <button type="button" class="more-act-btn more-act-btn--danger" id="more-action-delete" style="display: none;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
               <span>Delete Custom Template</span>
@@ -1375,7 +1499,47 @@
       </div>
     </div>
 
-    <!-- ===== MODAL: PREMIUM UNLOCK ===== -->
+    <!-- ===== MODAL: IMPORT CONFIRMATION DIALOG ===== -->
+    <div id="modal-import-confirm" class="modal-confirm-overlay" aria-label="Confirm Theme Import" style="display: none;">
+      <div class="modal-confirm-card modal-import-card">
+        <div class="import-card-header">
+          <div class="import-badge-pill" id="import-type-badge">Theme Package</div>
+          <h3 class="modal-confirm-title" id="import-confirm-title">Import Design</h3>
+        </div>
+        <div class="import-preview-box">
+          <div id="import-preview-thumbnail" class="import-preview-thumbnail"></div>
+          <div class="import-file-meta" id="import-file-meta">
+            <div class="import-meta-row"><span class="meta-label">File:</span> <span class="meta-val" id="import-meta-filename">-</span></div>
+            <div class="import-meta-row"><span class="meta-label">Format:</span> <span class="meta-val" id="import-meta-format">-</span></div>
+            <div class="import-meta-row"><span class="meta-label">Dimensions:</span> <span class="meta-val" id="import-meta-dimensions">-</span></div>
+            <div class="import-meta-row"><span class="meta-label">Size:</span> <span class="meta-val" id="import-meta-size">-</span></div>
+          </div>
+        </div>
+        <div id="import-image-warning" class="import-warning-notice" style="display: none;">
+          <div class="warning-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <strong>Standalone Background Graphic</strong>
+            <p>This image contains no table layout. LRD PointCalc will create a new theme with this background and apply a configurable table over it.</p>
+          </div>
+        </div>
+        <div id="import-layout-select-group" class="import-layout-group" style="display: none;">
+          <label class="import-label" for="import-initial-layout">Table Overlay Layout:</label>
+          <select id="import-initial-layout" class="import-select">
+            <option value="standard" selected>Standard 12-Team Leaderboard (PLC, Kills, PTS)</option>
+            <option value="minimal">Minimal Standings (Rank, Team, PTS)</option>
+            <option value="blank">Blank Canvas (Design in Visual Editor)</option>
+          </select>
+        </div>
+        <div class="modal-confirm-actions">
+          <button type="button" class="btn-cancel" id="import-btn-cancel">Cancel</button>
+          <button type="button" class="btn-confirm-action" id="import-btn-confirm">Import &amp; Open in Editor</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODAL: PREMIUM UNLOCK & ENTITLEMENT INFO ===== -->
     <div id="modal-premium-unlock" class="modal-premium-unlock" aria-label="Unlock Premium Templates">
       <div class="prem-modal-box">
         <div class="prem-icon-badge">
@@ -1383,13 +1547,24 @@
         </div>
         <h3 id="prem-modal-title">Premium Esports Design</h3>
         <p>Broadcast-tier esports templates with animated gradients, sponsor overlays, and pro typography are included with LRD Premium.</p>
+        <div class="prem-entitlement-status-box">
+          <span class="status-box-label">Current Entitlement Status:</span>
+          <span class="status-box-value" id="prem-current-status-val">FREE TIER</span>
+        </div>
         <div class="prem-perks-list">
           <div>✓ Unlock all pro broadcast templates</div>
           <div>✓ High-resolution 4K poster exports</div>
           <div>✓ Custom team logos &amp; watermark removal</div>
           <div>✓ Free Fire tournament bracket generator</div>
         </div>
-        <button type="button" id="btn-premium-close">Got It / Stay with Free</button>
+        <div class="prem-system-notice">
+          <strong>Configurable Entitlement System</strong>
+          <p>Access is unlocked via organizer entitlement tokens or verified tournament licenses. No online payment processing is required.</p>
+        </div>
+        <div class="prem-modal-actions-row">
+          <button type="button" class="btn-toggle-entitlement" id="btn-toggle-entitlement">Toggle Pro Entitlement (Demo/Admin)</button>
+          <button type="button" id="btn-premium-close">Close</button>
+        </div>
       </div>
     </div>
 
@@ -1403,7 +1578,20 @@
           </button>
           <input type="text" class="te-template-name-input" id="te-template-name" value="My Point Table" title="Click to rename template" />
         </div>
+        <div class="te-topbar__center">
+          <button type="button" class="te-btn-icon-top" id="te-btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+          </button>
+          <button type="button" class="te-btn-icon-top" id="te-btn-redo" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/></svg>
+          </button>
+        </div>
         <div class="te-topbar__right">
+          <div class="te-datasource-wrap" title="Bind Live Tournament Standings">
+            <select id="te-select-datasource" class="te-select-datasource" aria-label="Data Source">
+              <option value="sample">📊 Sample (12 Teams)</option>
+            </select>
+          </div>
           <button type="button" class="te-btn-top te-btn-preview" id="te-btn-preview">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             <span>Preview</span>
@@ -1412,36 +1600,225 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             <span>Save</span>
           </button>
+          <button type="button" class="te-btn-top te-btn-export" id="te-btn-export" title="Export High-Res PNG">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export</span>
+          </button>
         </div>
       </div>
 
       <!-- Editor Viewport / Stage -->
       <div class="te-viewport" id="te-canvas-viewport">
-        <div class="te-canvas-stage" id="te-canvas-stage">
+        <!-- Floating Canvas Controls Overlay -->
+        <div class="te-canvas-controls" id="te-canvas-controls">
+          <button type="button" class="te-ctrl-btn" id="te-btn-zoom-out" title="Zoom Out" aria-label="Zoom Out">−</button>
+          <span class="te-zoom-val" id="te-zoom-val">100%</span>
+          <button type="button" class="te-ctrl-btn" id="te-btn-zoom-in" title="Zoom In" aria-label="Zoom In">+</button>
+          <div class="te-ctrl-sep"></div>
+          <button type="button" class="te-ctrl-btn te-ctrl-btn--text" id="te-btn-zoom-fit" title="Fit to Viewport">Fit</button>
+          <button type="button" class="te-ctrl-btn te-ctrl-btn--text active" id="te-btn-toggle-grid" title="Toggle Alignment Grid">Grid</button>
+          <button type="button" class="te-ctrl-btn te-ctrl-btn--text active" id="te-btn-toggle-snap" title="Toggle Snap-to-Grid">Snap</button>
+        </div>
+
+        <div class="te-canvas-stage show-grid" id="te-canvas-stage">
           <!-- Rendered template fields with draggable handles -->
         </div>
       </div>
 
       <!-- Editor Bottom Bar -->
-      <div class="te-bottombar">
+      <div class="te-bottombar" id="te-bottombar">
         <button type="button" class="te-btn-action-bar" id="te-btn-add-field">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-          <span>+ Add Field</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span>+ Elements</span>
+        </button>
+        <button type="button" class="te-btn-action-bar" id="te-btn-table-engine">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+          <span>Table</span>
+        </button>
+        <button type="button" class="te-btn-action-bar" id="te-btn-fonts">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          <span>Fonts</span>
+        </button>
+        <button type="button" class="te-btn-action-bar" id="te-btn-colors">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0110 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z"/></svg>
+          <span>Colors</span>
+        </button>
+        <button type="button" class="te-btn-action-bar" id="te-btn-background">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Background</span>
+        </button>
+        <button type="button" class="te-btn-action-bar" id="te-btn-layers">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          <span>Layers</span>
         </button>
         <button type="button" class="te-btn-action-bar" id="te-btn-info">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span>Template Info</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Info</span>
         </button>
       </div>
 
       <!-- Bottom Sheet for Selected Field Properties -->
       <div id="te-props-sheet" class="te-props-sheet"></div>
 
+      <!-- Configurable Table Engine Sheet -->
+      <div id="te-table-engine-sheet" class="te-props-sheet te-table-engine-sheet"></div>
+
+      <!-- Layers Drawer -->
+      <div id="te-layers-sheet" class="te-props-sheet te-layers-sheet"></div>
+
+      <!-- Typography / Fonts Drawer -->
+      <div id="te-fonts-sheet" class="te-props-sheet te-fonts-sheet"></div>
+
+      <!-- Colors Drawer -->
+      <div id="te-colors-sheet" class="te-props-sheet te-colors-sheet"></div>
+
+      <!-- Background Drawer -->
+      <div id="te-background-sheet" class="te-props-sheet te-background-sheet"></div>
+
       <!-- Drawer for Dynamic Template Info Binding -->
       <div id="te-info-drawer" class="te-info-drawer"></div>
 
       <!-- Modal for Adding Fields -->
       <div id="te-add-field-modal" class="te-modal-backdrop"></div>
+
+      <!-- Modal for Export Choices (PNG, Theme, PDF) -->
+      <div id="te-export-modal" class="te-modal-backdrop" aria-label="Export Point Table" style="display: none;">
+        <div class="te-export-box">
+          <div class="te-modal-header">
+            <h3>Export Point Table</h3>
+            <button type="button" class="te-btn-close-modal" id="te-export-modal-close" aria-label="Close">✕</button>
+          </div>
+          <div class="te-export-options-list">
+            <button type="button" class="te-export-opt-btn" id="te-opt-export-png">
+              <div class="te-export-opt-icon">🖼️</div>
+              <div class="te-export-opt-meta">
+                <strong>High-Res PNG Graphic</strong>
+                <small>Crystal-clear 2x retina image ready for WhatsApp, Instagram &amp; YouTube broadcasts</small>
+              </div>
+            </button>
+            <button type="button" class="te-export-opt-btn" id="te-opt-export-theme">
+              <div class="te-export-opt-icon">📦</div>
+              <div class="te-export-opt-meta">
+                <strong>Portable Theme Package (.lrdtheme)</strong>
+                <small>Export layout, styles, table config &amp; field bindings to share or import on any device</small>
+              </div>
+            </button>
+            <button type="button" class="te-export-opt-btn" id="te-opt-export-pdf">
+              <div class="te-export-opt-icon">📄</div>
+              <div class="te-export-opt-meta">
+                <strong>Print / PDF Layout</strong>
+                <small>Full A4 portrait presentation ready for tournament broadcast printing</small>
+              </div>
+            </button>
+          </div>
+      <!-- Modal: Auto-Configure Table Element Detection and Binding -->
+      <div id="te-auto-table-modal" class="te-modal-backdrop" aria-label="Auto-Configure Table on Background" style="display: none;">
+        <div class="te-auto-table-box">
+          <div class="te-modal-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 20px;">⚡</span>
+              <div>
+                <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #ffffff;">Auto-Configure Table Elements</h3>
+                <p style="margin: 2px 0 0; font-size: 11px; color: #94a3b8;">Align table elements to your background grid and bind live scores</p>
+              </div>
+            </div>
+            <button type="button" class="te-btn-close-modal" id="te-auto-table-modal-close" aria-label="Close">✕</button>
+          </div>
+
+          <div class="te-auto-table-body">
+            <!-- Preset Selector -->
+            <div class="te-prop-group" style="margin-bottom: 12px;">
+              <label class="te-prop-label">Grid Layout Preset</label>
+              <select id="te-autotbl-preset" class="te-select-datasource" style="width: 100%;">
+                <option value="mle_scrims">MLE SCRIMS (12 Rows, Pre-Printed Header, Transparent Cells)</option>
+                <option value="standard_esports">Official Esports (12 Rows, Visible Header, Translucent Cells)</option>
+                <option value="top6_lobby">Top 6 Lobby (6 Rows, Pre-Printed Header, Transparent Cells)</option>
+                <option value="custom">Custom Grid Calibration</option>
+              </select>
+            </div>
+
+            <!-- Boundaries Calibration -->
+            <div class="te-prop-section-title" style="font-size: 11px; font-weight: 800; color: #d4af37; text-transform: uppercase; margin-bottom: 6px;">
+              Table Grid Boundaries (px)
+            </div>
+            <div class="te-prop-row" style="margin-bottom: 8px;">
+              <div class="te-prop-group" style="flex: 1;">
+                <label class="te-prop-label">X Pos</label>
+                <input type="number" class="te-prop-input" id="te-autotbl-x" value="60" min="0" max="1920" />
+              </div>
+              <div class="te-prop-group" style="flex: 1;">
+                <label class="te-prop-label">Y Pos</label>
+                <input type="number" class="te-prop-input" id="te-autotbl-y" value="260" min="0" max="1920" />
+              </div>
+              <div class="te-prop-group" style="flex: 1;">
+                <label class="te-prop-label">Width</label>
+                <input type="number" class="te-prop-input" id="te-autotbl-w" value="960" min="200" max="2560" />
+              </div>
+              <div class="te-prop-group" style="flex: 1;">
+                <label class="te-prop-label">Height</label>
+                <input type="number" class="te-prop-input" id="te-autotbl-h" value="920" min="100" max="2560" />
+              </div>
+            </div>
+
+            <!-- Row Configuration -->
+            <div class="te-prop-row" style="margin-bottom: 8px;">
+              <div class="te-prop-group" style="flex: 1;">
+                <label class="te-prop-label">Rows</label>
+                <select id="te-autotbl-rows" class="te-select-datasource" style="width: 100%;">
+                  <option value="6">6 Teams</option>
+                  <option value="8">8 Teams</option>
+                  <option value="10">10 Teams</option>
+                  <option value="12" selected>12 Teams (Standard FF)</option>
+                  <option value="16">16 Teams</option>
+                </select>
+              </div>
+              <div class="te-prop-group" style="flex: 1;">
+                <label class="te-prop-label">Row Height</label>
+                <input type="number" class="te-prop-input" id="te-autotbl-row-h" value="75" min="30" max="150" />
+              </div>
+              <div class="te-prop-group" style="flex: 1;">
+                <label class="te-prop-label">Row Spacing</label>
+                <input type="number" class="te-prop-input" id="te-autotbl-row-gap" value="0" min="0" max="30" />
+              </div>
+            </div>
+
+            <!-- Header and Background Options -->
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 10px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ffffff; cursor: pointer;">
+                <input type="checkbox" id="te-autotbl-hide-header" checked />
+                <span>Background has pre-printed headers (Hide overlay header)</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ffffff; cursor: pointer;">
+                <input type="checkbox" id="te-autotbl-transparent-cells" checked />
+                <span>Transparent cell boxes (Overlay text directly on background art)</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ffffff; cursor: pointer;">
+                <input type="checkbox" id="te-autotbl-top3-gold" />
+                <span>Top 3 podium subtle highlight</span>
+              </label>
+            </div>
+
+            <!-- Columns Checklist -->
+            <div class="te-prop-section-title" style="font-size: 11px; font-weight: 800; color: #d4af37; text-transform: uppercase; margin-bottom: 6px;">
+              Included Standings Columns
+            </div>
+            <div id="te-autotbl-cols-list" class="te-autotbl-cols-list" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;"></div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px;">
+              <button type="button" class="te-btn-top te-btn-preview" id="te-btn-autotbl-preview" style="padding: 8px 14px;">
+                👁️ Test Preview
+              </button>
+              <button type="button" class="te-btn-top te-btn-save" id="te-btn-autotbl-apply" style="padding: 8px 16px;">
+                ⚡ Apply &amp; Bind Standings
+              </button>
+              <button type="button" class="te-btn-top te-btn-export" id="te-btn-autotbl-save-theme" style="padding: 8px 14px;" title="Export configured layout as .lrdtheme">
+                📦 Save as .lrdtheme
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ===== TOAST ===== -->

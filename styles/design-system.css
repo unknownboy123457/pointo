@@ -157,6 +157,10 @@ img { display: block; max-width: 100%; }
   clip: rect(0,0,0,0); border: 0;
 }
 
+:root {
+  --top-bar-height: 0px;
+}
+
 /* ----- App Shell ----- */
 .app-shell {
   position: fixed;
@@ -167,12 +171,24 @@ img { display: block; max-width: 100%; }
   flex-direction: column;
   background-color: var(--bg-primary);
   overflow: hidden;
+  transition: max-width var(--transition-normal);
+}
+
+.app-shell.has-mode-header {
+  --top-bar-height: 52px;
+}
+
+@media (min-width: 768px) {
+  .app-shell.mode-studio {
+    max-width: 1200px;
+  }
 }
 
 /* ----- Screen ----- */
 .screen {
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: var(--top-bar-height, 0px);
+  left: 0; right: 0;
   bottom: var(--nav-height);
   opacity: 0;
   visibility: hidden;
@@ -180,6 +196,12 @@ img { display: block; max-width: 100%; }
   will-change: opacity;
 }
 .screen.active { opacity: 1; visibility: visible; }
+
+#screen-login,
+#screen-splash {
+  top: 0 !important;
+  bottom: 0 !important;
+}
 
 .screen-scroll {
   height: 100%;

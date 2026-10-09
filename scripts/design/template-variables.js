@@ -215,15 +215,15 @@
     const row = context.row || {};
 
     return {
-      'tournament.name': info.tournamentName || tournament.name || 'LRD Tournament',
+      'tournament.name': tournament.name || info.tournamentName || 'LRD Tournament',
       'tournament.matchNumber': match.match_number ? `MATCH ${String(match.match_number).padStart(2, '0')}` : (info.matchNumber || 'OVERALL'),
-      'tournament.date': info.date || (tournament.created_at ? new Date(tournament.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''),
-      'tournament.organizer': info.organizer || 'LRD Esports',
-      'tournament.gameMode': tournament.game_mode ? tournament.game_mode.toUpperCase() : 'SQUAD',
-      'tournament.youtube': info.youtube || '',
-      'tournament.instagram': info.instagram || '',
-      'tournament.whatsapp': info.whatsapp || '',
-      'tournament.website': info.website || '',
+      'tournament.date': (tournament.created_at ? new Date(tournament.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '') || info.date || '',
+      'tournament.organizer': tournament.organizer || info.organizer || 'LRD Esports',
+      'tournament.gameMode': tournament.game_mode ? tournament.game_mode.toUpperCase() : (tournament.gameMode || 'SQUAD'),
+      'tournament.youtube': tournament.youtube || info.youtube || '',
+      'tournament.instagram': tournament.instagram || info.instagram || '',
+      'tournament.whatsapp': tournament.whatsapp || info.whatsapp || '',
+      'tournament.website': tournament.website || info.website || '',
       'tournament.header': info.header || 'STANDINGS',
       'tournament.footer': info.footer || '',
 

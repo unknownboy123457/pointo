@@ -22,6 +22,13 @@
       if (!window.TemplateRenderer) {
         throw new Error('TemplateRenderer is required for export.');
       }
+      if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+        try {
+          await document.fonts.ready;
+        } catch (e) {
+          // Continue if fonts API not supported
+        }
+      }
       const scale = options.scale || 2; // 2x retina standard
       return await window.TemplateRenderer.renderToCanvas(template, dataContext, scale);
     },
@@ -36,28 +43,85 @@
     },
 
     /**
+     * Format a descriptive, tournament-aware filename for exports
+     */
+    formatExportFilename(template, dataContext = {}, pageIndex = null) {
+      const tournRaw = dataContext.tournament?.name || template?.info?.tournamentName || 'Tournament';
+      const cleanTourn = tournRaw.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+
+      const matchRaw = dataContext.mode === 'single' && dataContext.match?.match_number
+        ? `Match_${dataContext.match.match_number}`
+        : 'Overall_Standings';
+
+      const tmplRaw = (template?.name || 'Theme').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const pageSuffix = (pageIndex !== null && pageIndex > 0) ? `_Page${pageIndex + 1}` : '';
+
+      return `${cleanTourn}_${matchRaw}_${tmplRaw}${pageSuffix}.png`;
+    },
+
+    /**
+     * Render canvas for a specific page slice
+     */
+    async exportPageCanvas(template, dataContext, pageIndex = 0, options = {}) {
+      if (!template) throw new Error('Template is required.');
+      const clone = JSON.parse(JSON.stringify(template));
+      const table = clone.fields?.find((f) => f.type === 'leaderboard');
+      if (table) {
+        table.pageIndex = pageIndex;
+      }
+      return await this.generateCanvas(clone, dataContext, options);
+    },
+
+    /**
      * Download rendered point table as PNG
      *
      * @param {Object} template
      * @param {Object} dataContext
      * @param {string} [filename]
+     * @param {Object} [options] - { scale: number, pageIndex: number }
      */
-    async downloadPNG(template, dataContext, filename) {
-      const canvas = await this.generateCanvas(template, dataContext, { scale: 2 });
+    async downloadPNG(template, dataContext, filename, options = {}) {
+      const scale = options.scale || 2;
+      const pageIndex = options.pageIndex !== undefined ? options.pageIndex : (template?.fields?.find(f => f.type === 'leaderboard')?.pageIndex || null);
+
+      const canvas = pageIndex !== null
+        ? await this.exportPageCanvas(template, dataContext, pageIndex, { scale })
+        : await this.generateCanvas(template, dataContext, { scale });
+
       const blob = await this.canvasToBlob(canvas, 'image/png', 1.0);
+      const safeName = filename || this.formatExportFilename(template, dataContext, pageIndex);
 
-      const safeName = filename || `${(template.name || 'PointTable').replace(/\s+/g, '_')}_${Date.now()}.png`;
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = safeName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = safeName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      return { filename: safeName, blob, canvas };
+    },
 
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      return safeName;
+    /**
+     * Download all pages of a multi-page tournament point table
+     */
+    async downloadAllPages(template, dataContext, options = {}) {
+      const table = template?.fields?.find((f) => f.type === 'leaderboard');
+      const maxRows = table?.maxRows || 12;
+      const totalTeams = dataContext?.leaderboard?.length || 12;
+      const totalPages = Math.max(1, Math.ceil(totalTeams / maxRows));
+
+      const results = [];
+      for (let p = 0; p < totalPages; p++) {
+        const res = await this.downloadPNG(template, dataContext, null, { ...options, pageIndex: p });
+        results.push(res);
+        // Small delay between downloads for browser stability
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+      return results;
     },
 
     /**

@@ -72,19 +72,24 @@
      * Get a specific tournament by ID, ensuring user ownership
      */
     getTournamentById(tournamentId, ownerUserId) {
-      if (!tournamentId || !ownerUserId) return null;
+      if (!tournamentId) return null;
       const all = readCollection(KEYS.TOURNAMENTS);
-      return all.find((t) => t.id === tournamentId && t.owner_user_id === ownerUserId) || null;
+      if (ownerUserId) {
+        return all.find((t) => t.id === tournamentId && t.owner_user_id === ownerUserId) || null;
+      }
+      return all.find((t) => t.id === tournamentId) || null;
     },
 
     /**
      * Create a new tournament locally for the authenticated owner
      * Saves tournament, exactly N separate teams, and optional player records.
      */
-    createTournament(ownerUserId, { name, team_count, game_mode, scoring_system, scoring_config, teamsData }) {
+    createTournament(ownerUserId, options = {}) {
+      const { name, team_count, game_mode, scoring_system, scoring_config, teamsData, teams } = options || {};
       if (!ownerUserId || !name) return null;
 
-      const teamCount = parseInt(team_count, 10) || 12;
+      const tList = teamsData || teams;
+      const teamCount = parseInt(team_count, 10) || (Array.isArray(tList) && tList.length > 0 ? tList.length : 12);
       const now = new Date().toISOString();
 
       const newTournament = {
@@ -107,9 +112,10 @@
       const allTeams = readCollection(KEYS.TEAMS);
       const allPlayers = readCollection(KEYS.PLAYERS);
 
-      if (Array.isArray(teamsData) && teamsData.length > 0) {
-        teamsData.slice(0, teamCount).forEach((td, idx) => {
-          const teamName = (td && td.name ? td.name.trim() : '') || `Team ${idx + 1}`;
+      if (Array.isArray(tList) && tList.length > 0) {
+        tList.slice(0, teamCount).forEach((td, idx) => {
+          const rawName = td && (td.name || td.team_name);
+          const teamName = (rawName ? String(rawName).trim() : '') || `Team ${idx + 1}`;
           const teamId = generateId('team');
           const teamRecord = {
             id: teamId,
@@ -140,8 +146,8 @@
         });
 
         // If fewer teams provided than teamCount, generate remaining default teams
-        if (teamsData.length < teamCount) {
-          for (let i = teamsData.length + 1; i <= teamCount; i++) {
+        if (tList.length < teamCount) {
+          for (let i = tList.length + 1; i <= teamCount; i++) {
             allTeams.push({
               id: generateId('team'),
               tournament_id: newTournament.id,
@@ -341,7 +347,12 @@
     saveMatchResults(tournamentId, matchId, entries, scoringConfig, multiplier = 1) {
       if (!matchId || !Array.isArray(entries)) return null;
 
-      const mult = Number(multiplier) > 0 ? Number(multiplier) : 1;
+      let config = scoringConfig;
+      let mult = Number(multiplier) > 0 ? Number(multiplier) : 1;
+      if (typeof scoringConfig === 'number') {
+        mult = scoringConfig > 0 ? scoringConfig : 1;
+        config = null;
+      }
 
       // Ensure match exists and mark completed
       const allMatches = readCollection(KEYS.MATCHES);
@@ -361,13 +372,13 @@
       const savedResults = [];
 
       entries.forEach((entry) => {
-        const teamId = entry.teamId;
+        const teamId = entry.teamId || entry.team_id;
         const place = Number(entry.placement) || 0;
         const kills = Math.max(0, Number(entry.kills) || 0);
 
         // Always compute using ScoringEngine with multiplier
         const pts = Engine
-          ? Engine.calculateTeamPoints(place, kills, scoringConfig, mult)
+          ? Engine.calculateTeamPoints(place, kills, config, mult)
           : { placementPoints: 0, killPoints: kills, multiplier: mult, totalPoints: Math.round(kills * mult) };
 
         const resultRecord = {
@@ -452,9 +463,22 @@
 
       return [];
     },
+
+    /**
+     * Unified leaderboard resolver (overall or single match)
+     */
+    getLeaderboard(tournamentId, matchId = null, scoringConfig) {
+      if (matchId) {
+        return this.getMatchLeaderboard(matchId, scoringConfig);
+      }
+      return this.getTournamentLeaderboard(tournamentId, scoringConfig);
+    },
   };
 
-  // Export to window
+  // Export to window and module
   window.LocalDatabaseService = LocalDatabaseService;
   window.TournamentService = LocalDatabaseService;
-})(window);
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = LocalDatabaseService;
+  }
+})(typeof window !== 'undefined' ? window : global);

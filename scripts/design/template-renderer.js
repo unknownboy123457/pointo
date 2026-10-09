@@ -101,6 +101,10 @@
    * Create DOM element for a template field
    */
   function createFieldElement(field, context, leaderboard, options = {}) {
+    if (field.hidden && !options.isEditor) {
+      return null;
+    }
+
     const el = document.createElement('div');
     el.className = `lrd-template-field field-type-${field.type}`;
     el.dataset.fieldId = field.id;
@@ -109,6 +113,12 @@
       el.classList.add('editor-field');
       if (options.selectedFieldId === field.id) {
         el.classList.add('is-selected');
+      }
+      if (field.hidden) {
+        el.classList.add('is-hidden');
+      }
+      if (field.locked) {
+        el.classList.add('is-locked');
       }
     }
 
@@ -119,10 +129,14 @@
     el.style.width = `${field.width}px`;
     el.style.height = `${field.height}px`;
     el.style.boxSizing = 'border-box';
-    if (field.opacity !== undefined) el.style.opacity = field.opacity;
+    if (field.opacity !== undefined) el.style.opacity = field.hidden ? 0.35 : field.opacity;
     if (field.borderRadius) el.style.borderRadius = `${field.borderRadius}px`;
     if (field.backgroundColor) el.style.backgroundColor = field.backgroundColor;
     if (field.border) el.style.border = field.border;
+    if (field.rotation) {
+      el.style.transform = `rotate(${field.rotation}deg)`;
+      el.style.transformOrigin = 'center center';
+    }
 
     // Field types
     if (field.type === 'text') {
@@ -131,9 +145,21 @@
       renderLeaderboardFieldDOM(field, el, leaderboard, context);
     } else if (field.type === 'image' || field.type === 'logo') {
       renderImageFieldDOM(field, el);
+    } else if (field.type === 'shape' || field.type === 'rectangle') {
+      renderShapeFieldDOM(field, el);
     }
 
     return el;
+  }
+
+  /**
+   * Render shape / rectangle into DOM element
+   */
+  function renderShapeFieldDOM(field, el) {
+    el.style.backgroundColor = field.backgroundColor || 'rgba(212, 175, 55, 0.2)';
+    if (field.borderRadius) el.style.borderRadius = `${field.borderRadius}px`;
+    if (field.border) el.style.border = field.border;
+    if (field.boxShadow) el.style.boxShadow = field.boxShadow;
   }
 
   /**
@@ -179,36 +205,42 @@
     ];
 
     const rowHeight = field.rowHeight || 60;
-    const headerHeight = field.headerHeight || 44;
+    const headerHeight = field.headerHeight !== undefined ? field.headerHeight : 44;
     const maxRows = field.maxRows || 12;
+    const pageIndex = field.pageIndex || 0;
+    const rowGap = field.rowGap || 0;
+    const showHeader = !field.hideHeader && headerHeight > 0;
 
-    // Table Header
-    const headerEl = document.createElement('div');
-    headerEl.className = 'leaderboard-header-row';
-    headerEl.style.display = 'flex';
-    headerEl.style.height = `${headerHeight}px`;
-    headerEl.style.minHeight = `${headerHeight}px`;
-    headerEl.style.alignItems = 'center';
-    if (field.headerStyle?.backgroundColor) headerEl.style.background = field.headerStyle.backgroundColor;
-    if (field.headerStyle?.borderBottom) headerEl.style.borderBottom = field.headerStyle.borderBottom;
+    // Table Header (omitted if hideHeader is true, e.g. for pre-printed background grids)
+    if (showHeader) {
+      const headerEl = document.createElement('div');
+      headerEl.className = 'leaderboard-header-row';
+      headerEl.style.display = 'flex';
+      headerEl.style.height = `${headerHeight}px`;
+      headerEl.style.minHeight = `${headerHeight}px`;
+      headerEl.style.alignItems = 'center';
+      if (field.headerStyle?.backgroundColor) headerEl.style.background = field.headerStyle.backgroundColor;
+      if (field.headerStyle?.borderBottom) headerEl.style.borderBottom = field.headerStyle.borderBottom;
+      if (rowGap > 0) headerEl.style.marginBottom = `${rowGap}px`;
 
-    columns.forEach((col) => {
-      const colEl = document.createElement('div');
-      colEl.className = `lb-col lb-col-${col.key}`;
-      colEl.style.flex = `0 0 ${col.width}px`;
-      colEl.style.maxWidth = `${col.width}px`;
-      colEl.style.textAlign = col.align || 'center';
-      colEl.style.color = field.headerStyle?.color || '#d4af37';
-      colEl.style.fontSize = `${field.headerStyle?.fontSize || 16}px`;
-      colEl.style.fontWeight = field.headerStyle?.fontWeight || '800';
-      colEl.style.letterSpacing = field.headerStyle?.letterSpacing || '1px';
-      colEl.style.padding = '0 8px';
-      colEl.style.boxSizing = 'border-box';
-      colEl.textContent = col.label;
-      headerEl.appendChild(colEl);
-    });
+      columns.forEach((col) => {
+        const colEl = document.createElement('div');
+        colEl.className = `lb-col lb-col-${col.key}`;
+        colEl.style.flex = `0 0 ${col.width}px`;
+        colEl.style.maxWidth = `${col.width}px`;
+        colEl.style.textAlign = col.align || 'center';
+        colEl.style.color = field.headerStyle?.color || '#d4af37';
+        colEl.style.fontSize = `${field.headerStyle?.fontSize || 16}px`;
+        colEl.style.fontWeight = field.headerStyle?.fontWeight || '800';
+        colEl.style.letterSpacing = field.headerStyle?.letterSpacing || '1px';
+        colEl.style.padding = '0 8px';
+        colEl.style.boxSizing = 'border-box';
+        colEl.textContent = col.label;
+        headerEl.appendChild(colEl);
+      });
 
-    el.appendChild(headerEl);
+      el.appendChild(headerEl);
+    }
 
     // Rows Container
     const rowsContainer = document.createElement('div');
@@ -217,11 +249,12 @@
     rowsContainer.style.flexDirection = 'column';
     rowsContainer.style.flex = '1';
 
-    // Take top maxRows from leaderboard
-    const displayRows = leaderboard.slice(0, maxRows);
+    // Take slice according to pagination
+    const startIdx = pageIndex * maxRows;
+    const displayRows = leaderboard.slice(startIdx, startIdx + maxRows);
 
     displayRows.forEach((rowData, idx) => {
-      const rank = rowData.rank || idx + 1;
+      const rank = rowData.rank || startIdx + idx + 1;
       const rowEl = document.createElement('div');
       rowEl.className = `leaderboard-data-row rank-${rank}`;
       rowEl.style.display = 'flex';
@@ -229,6 +262,12 @@
       rowEl.style.minHeight = `${rowHeight}px`;
       rowEl.style.alignItems = 'center';
       rowEl.style.boxSizing = 'border-box';
+      if (rowGap > 0) {
+        rowEl.style.marginBottom = `${rowGap}px`;
+        if (field.rowStyle?.borderRadius) {
+          rowEl.style.borderRadius = `${field.rowStyle.borderRadius}px`;
+        }
+      }
 
       // Background striping
       const isAlt = idx % 2 === 1;
@@ -277,31 +316,32 @@
 
         // Extract value
         let val = '';
-        if (col.key === 'rank') {
+        const k = (col.key || '').toLowerCase();
+        if (k === 'rank' || k === 'pos') {
           colEl.innerHTML = `<span style="display:inline-block; width:34px; height:34px; line-height:34px; border-radius:17px; background:${rankBadgeBg}; color:${rankBadgeColor}; font-weight:800; font-size:18px;">${rank}</span>`;
-        } else if (col.key === 'teamName') {
+        } else if (k === 'teamname' || k === 'team') {
           colEl.style.fontWeight = '700';
           val = rowData.teamName || rowData.name || `Team ${rank}`;
           colEl.textContent = val;
-        } else if (col.key === 'position') {
+        } else if (k === 'position' || k === 'place' || k === 'plc') {
           val = rowData.placement !== undefined ? rowData.placement : (rowData.position !== undefined ? rowData.position : '-');
           colEl.textContent = val;
-        } else if (col.key === 'kills') {
-          val = rowData.kills !== undefined ? rowData.kills : 0;
+        } else if (k === 'kills' || k === 'finish' || k === 'fin') {
+          val = rowData.totalKills !== undefined ? rowData.totalKills : (rowData.kills !== undefined ? rowData.kills : 0);
           colEl.textContent = val;
-        } else if (col.key === 'totalPoints' || col.key === 'points') {
+        } else if (k === 'totalpoints' || k === 'points' || k === 'total' || k === 'pts') {
           val = rowData.totalPoints !== undefined ? rowData.totalPoints : (rowData.total_points !== undefined ? rowData.total_points : 0);
           colEl.innerHTML = `<span style="color:#d4af37; font-weight:800; font-size:22px;">${val}</span>`;
-        } else if (col.key === 'placementPoints') {
+        } else if (k === 'placementpoints') {
           val = rowData.placementPoints !== undefined ? rowData.placementPoints : 0;
           colEl.textContent = val;
-        } else if (col.key === 'killPoints') {
+        } else if (k === 'killpoints') {
           val = rowData.killPoints !== undefined ? rowData.killPoints : 0;
           colEl.textContent = val;
-        } else if (col.key === 'matchesPlayed') {
+        } else if (k === 'matchesplayed' || k === 'match' || k === 'matches') {
           val = rowData.matchesPlayed !== undefined ? rowData.matchesPlayed : 1;
           colEl.textContent = val;
-        } else if (col.key === 'booyahs') {
+        } else if (k === 'booyahs' || k === 'wins' || k === 'win') {
           val = rowData.booyahs !== undefined ? rowData.booyahs : (rowData.placement === 1 ? 1 : 0);
           colEl.textContent = val;
         } else {
@@ -363,11 +403,15 @@
     canvas.width = Math.round(baseW * scaleFactor);
     canvas.height = Math.round(baseH * scaleFactor);
 
-    const ctx = canvas.getContext('2d');
-    ctx.scale(scaleFactor, scaleFactor);
+    const ctx = canvas.getContext ? canvas.getContext('2d') : null;
+    if (ctx && typeof ctx.scale === 'function') {
+      ctx.scale(scaleFactor, scaleFactor);
+    }
 
-    // 1. Draw Background
-    await drawBackgroundOnCanvas(ctx, template.background, baseW, baseH);
+    if (ctx) {
+      // 1. Draw Background
+      await drawBackgroundOnCanvas(ctx, template.background, baseW, baseH);
+    }
 
     // Build context
     const context = {
@@ -379,13 +423,19 @@
 
     // 2. Draw Fields
     const fields = template.fields || [];
-    for (const field of fields) {
-      if (field.type === 'text') {
-        drawTextFieldOnCanvas(ctx, field, context);
-      } else if (field.type === 'leaderboard') {
-        drawLeaderboardOnCanvas(ctx, field, dataContext.leaderboard || []);
-      } else if (field.type === 'image' || field.type === 'logo') {
-        await drawImageOnCanvas(ctx, field);
+    if (ctx) {
+      for (const field of fields) {
+        if (field.hidden) continue;
+
+        if (field.type === 'text') {
+          drawTextFieldOnCanvas(ctx, field, context);
+        } else if (field.type === 'leaderboard') {
+          drawLeaderboardOnCanvas(ctx, field, dataContext.leaderboard || []);
+        } else if (field.type === 'image' || field.type === 'logo') {
+          await drawImageOnCanvas(ctx, field);
+        } else if (field.type === 'shape' || field.type === 'rectangle') {
+          drawShapeOnCanvas(ctx, field);
+        }
       }
     }
 
@@ -428,6 +478,33 @@
   }
 
   /**
+   * Safe text truncation with ellipsis for 2D canvas context
+   */
+  function fitTextWithEllipsis(ctx, text, maxWidth) {
+    if (!text) return '';
+    if (typeof ctx.measureText !== 'function') return String(text);
+    const str = String(text);
+    if (ctx.measureText(str).width <= maxWidth) return str;
+    let truncated = str;
+    while (truncated.length > 0 && ctx.measureText(truncated + '...').width > maxWidth) {
+      truncated = truncated.slice(0, -1);
+    }
+    return truncated.length > 0 ? truncated + '...' : str;
+  }
+
+  /**
+   * Helper: Apply rotation transform around field center on 2D context
+   */
+  function applyRotationToCanvas(ctx, field) {
+    if (!field.rotation) return;
+    const cx = field.x + field.width / 2;
+    const cy = field.y + field.height / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate((field.rotation * Math.PI) / 180);
+    ctx.translate(-cx, -cy);
+  }
+
+  /**
    * Draw text field on 2D context
    */
   function drawTextFieldOnCanvas(ctx, field, context) {
@@ -437,7 +514,7 @@
       : rawContent;
 
     ctx.save();
-
+    if (field.rotation) applyRotationToCanvas(ctx, field);
     if (field.opacity !== undefined) ctx.globalAlpha = field.opacity;
 
     // Background box if any
@@ -472,7 +549,8 @@
     }
 
     const drawY = field.y + field.height / 2;
-    ctx.fillText(resolvedText, drawX, drawY);
+    const safeText = fitTextWithEllipsis(ctx, resolvedText, Math.max(20, field.width - 24));
+    ctx.fillText(safeText, drawX, drawY);
 
     ctx.restore();
   }
@@ -482,6 +560,8 @@
    */
   function drawLeaderboardOnCanvas(ctx, field, leaderboard = []) {
     ctx.save();
+    if (field.rotation) applyRotationToCanvas(ctx, field);
+    if (field.opacity !== undefined) ctx.globalAlpha = field.opacity;
 
     const columns = field.columns || [
       { key: 'rank', label: '#', width: 80, align: 'center' },
@@ -492,46 +572,54 @@
     ];
 
     const rowHeight = field.rowHeight || 64;
-    const headerHeight = field.headerHeight || 46;
+    const headerHeight = field.headerHeight !== undefined ? field.headerHeight : 46;
     const maxRows = field.maxRows || 12;
+    const pageIndex = field.pageIndex || 0;
+    const rowGap = field.rowGap || 0;
+    const showHeader = !field.hideHeader && headerHeight > 0;
 
-    // Draw Header
-    ctx.fillStyle = field.headerStyle?.backgroundColor || 'rgba(212, 175, 55, 0.15)';
-    ctx.fillRect(field.x, field.y, field.width, headerHeight);
+    // Draw Header (omitted if hideHeader is true)
+    if (showHeader) {
+      ctx.fillStyle = field.headerStyle?.backgroundColor || 'rgba(212, 175, 55, 0.15)';
+      ctx.fillRect(field.x, field.y, field.width, headerHeight);
 
-    // Header border bottom
-    ctx.strokeStyle = '#d4af37';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(field.x, field.y + headerHeight);
-    ctx.lineTo(field.x + field.width, field.y + headerHeight);
-    ctx.stroke();
+      // Header border bottom
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(field.x, field.y + headerHeight);
+      ctx.lineTo(field.x + field.width, field.y + headerHeight);
+      ctx.stroke();
 
-    // Header columns text
-    ctx.font = `800 ${field.headerStyle?.fontSize || 16}px Inter, sans-serif`;
-    ctx.fillStyle = field.headerStyle?.color || '#d4af37';
-    ctx.textBaseline = 'middle';
+      // Header columns text
+      ctx.font = `800 ${field.headerStyle?.fontSize || 16}px Inter, sans-serif`;
+      ctx.fillStyle = field.headerStyle?.color || '#d4af37';
+      ctx.textBaseline = 'middle';
 
-    let currentX = field.x;
-    columns.forEach((col) => {
-      let colX = currentX + col.width / 2;
-      ctx.textAlign = col.align || 'center';
-      if (col.align === 'left') colX = currentX + 16;
-      if (col.align === 'right') colX = currentX + col.width - 16;
-      ctx.fillText(col.label, colX, field.y + headerHeight / 2);
-      currentX += col.width;
-    });
+      let currentX = field.x;
+      columns.forEach((col) => {
+        let colX = currentX + col.width / 2;
+        ctx.textAlign = col.align || 'center';
+        if (col.align === 'left') colX = currentX + 16;
+        if (col.align === 'right') colX = currentX + col.width - 16;
+        ctx.fillText(col.label, colX, field.y + headerHeight / 2);
+        currentX += col.width;
+      });
+    }
 
     // Draw Rows
-    const displayRows = leaderboard.slice(0, maxRows);
-    let rowY = field.y + headerHeight;
+    const startIdx = pageIndex * maxRows;
+    const displayRows = leaderboard.slice(startIdx, startIdx + maxRows);
+    let rowY = field.y + (showHeader ? headerHeight + (rowGap > 0 ? rowGap : 0) : 0);
 
     displayRows.forEach((row, idx) => {
-      const rank = row.rank || idx + 1;
+      const rank = row.rank || startIdx + idx + 1;
       const isAlt = idx % 2 === 1;
 
       // Row background
-      let rowBg = isAlt ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.015)';
+      let rowBg = isAlt
+        ? field.rowStyle?.alternateColor || 'rgba(255, 255, 255, 0.04)'
+        : field.rowStyle?.backgroundColor || 'rgba(255, 255, 255, 0.015)';
       let badgeBg = 'transparent';
       let badgeColor = '#8e92a4';
 
@@ -552,15 +640,22 @@
       }
 
       ctx.fillStyle = rowBg;
-      ctx.fillRect(field.x, rowY, field.width, rowHeight);
+      if (rowGap > 0 && field.rowStyle?.borderRadius) {
+        drawRoundedRect(ctx, field.x, rowY, field.width, rowHeight, field.rowStyle.borderRadius);
+        ctx.fill();
+      } else {
+        ctx.fillRect(field.x, rowY, field.width, rowHeight);
+      }
 
-      // Row divider
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(field.x, rowY + rowHeight);
-      ctx.lineTo(field.x + field.width, rowY + rowHeight);
-      ctx.stroke();
+      // Row divider if no row gap
+      if (rowGap <= 0) {
+        ctx.strokeStyle = field.rowStyle?.borderBottom || 'rgba(255, 255, 255, 0.06)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(field.x, rowY + rowHeight);
+        ctx.lineTo(field.x + field.width, rowY + rowHeight);
+        ctx.stroke();
+      }
 
       // Row columns text
       ctx.font = `600 ${field.rowStyle?.fontSize || 20}px Inter, sans-serif`;
@@ -575,7 +670,8 @@
         if (col.align === 'right') drawColX = rowX + col.width - 16;
 
         let textVal = '';
-        if (col.key === 'rank') {
+        const k = (col.key || '').toLowerCase();
+        if (k === 'rank' || k === 'pos') {
           if (badgeBg !== 'transparent') {
             ctx.fillStyle = badgeBg;
             ctx.beginPath();
@@ -591,33 +687,47 @@
             ctx.fillText(String(rank), drawColX, rowY + rowHeight / 2);
             ctx.fillStyle = '#ffffff';
           }
-        } else if (col.key === 'teamName') {
+        } else if (k === 'teamname' || k === 'team') {
           textVal = row.teamName || row.name || `Team ${rank}`;
           ctx.font = '700 22px Inter, sans-serif';
-          ctx.fillText(textVal, drawColX, rowY + rowHeight / 2);
+          const maxNameW = Math.max(40, col.width - 28);
+          const safeName = fitTextWithEllipsis(ctx, textVal, maxNameW);
+          ctx.fillText(safeName, drawColX, rowY + rowHeight / 2);
           ctx.font = `600 ${field.rowStyle?.fontSize || 20}px Inter, sans-serif`;
-        } else if (col.key === 'totalPoints' || col.key === 'points') {
+        } else if (k === 'totalpoints' || k === 'points' || k === 'total' || k === 'pts') {
           textVal = String(row.totalPoints !== undefined ? row.totalPoints : (row.total_points || 0));
           ctx.fillStyle = '#d4af37';
           ctx.font = '800 24px Inter, sans-serif';
           ctx.fillText(textVal, drawColX, rowY + rowHeight / 2);
           ctx.font = `600 ${field.rowStyle?.fontSize || 20}px Inter, sans-serif`;
           ctx.fillStyle = '#ffffff';
-        } else if (col.key === 'position') {
+        } else if (k === 'position' || k === 'place' || k === 'plc') {
           textVal = String(row.placement !== undefined ? row.placement : (row.position || '-'));
           ctx.fillText(textVal, drawColX, rowY + rowHeight / 2);
-        } else if (col.key === 'kills') {
-          textVal = String(row.kills !== undefined ? row.kills : 0);
+        } else if (k === 'kills' || k === 'finish' || k === 'fin') {
+          textVal = String(row.totalKills !== undefined ? row.totalKills : (row.kills !== undefined ? row.kills : 0));
+          ctx.fillText(textVal, drawColX, rowY + rowHeight / 2);
+        } else if (k === 'placementpoints') {
+          textVal = String(row.placementPoints !== undefined ? row.placementPoints : 0);
+          ctx.fillText(textVal, drawColX, rowY + rowHeight / 2);
+        } else if (k === 'killpoints') {
+          textVal = String(row.killPoints !== undefined ? row.killPoints : 0);
+          ctx.fillText(textVal, drawColX, rowY + rowHeight / 2);
+        } else if (k === 'matchesplayed' || k === 'match' || k === 'matches') {
+          textVal = String(row.matchesPlayed !== undefined ? row.matchesPlayed : 1);
+          ctx.fillText(textVal, drawColX, rowY + rowHeight / 2);
+        } else if (k === 'booyahs' || k === 'wins' || k === 'win') {
+          textVal = String(row.booyahs !== undefined ? row.booyahs : (row.placement === 1 ? 1 : 0));
           ctx.fillText(textVal, drawColX, rowY + rowHeight / 2);
         } else {
-          textVal = String(row[col.key] || '-');
-          ctx.fillText(textVal, drawColX, rowY + rowHeight / 2);
+          textVal = String(row[col.key] !== undefined ? row[col.key] : '-');
+          ctx.fillText(fitTextWithEllipsis(ctx, textVal, Math.max(20, col.width - 16)), drawColX, rowY + rowHeight / 2);
         }
 
         rowX += col.width;
       });
 
-      rowY += rowHeight;
+      rowY += rowHeight + (rowGap > 0 ? rowGap : 0);
     });
 
     ctx.restore();
@@ -631,12 +741,57 @@
     try {
       const img = await loadImage(field.src);
       ctx.save();
+      if (field.rotation) applyRotationToCanvas(ctx, field);
       if (field.opacity !== undefined) ctx.globalAlpha = field.opacity;
       ctx.drawImage(img, field.x, field.y, field.width, field.height);
       ctx.restore();
     } catch (e) {
       console.warn('TemplateRenderer: Failed to draw image field:', e);
     }
+  }
+
+  /**
+   * Draw shape / rectangle field on 2D context
+   */
+  function drawShapeOnCanvas(ctx, field) {
+    ctx.save();
+    if (field.rotation) applyRotationToCanvas(ctx, field);
+    if (field.opacity !== undefined) ctx.globalAlpha = field.opacity;
+
+    if (field.boxShadow) {
+      const match = field.boxShadow.match(/(rgba?\([^)]+\)|#[0-9a-fA-F]+)/);
+      if (match) {
+        ctx.shadowColor = match[1];
+        ctx.shadowBlur = 16;
+      }
+    }
+
+    ctx.fillStyle = field.backgroundColor || 'rgba(212, 175, 55, 0.2)';
+    if (field.borderRadius) {
+      drawRoundedRect(ctx, field.x, field.y, field.width, field.height, field.borderRadius);
+      ctx.fill();
+    } else {
+      ctx.fillRect(field.x, field.y, field.width, field.height);
+    }
+
+    if (field.border) {
+      let bWidth = field.borderWidth || 1;
+      let bColor = field.borderColor || '#d4af37';
+      const wMatch = String(field.border).match(/^(\d+)px/);
+      if (wMatch) bWidth = parseInt(wMatch[1], 10);
+      const cMatch = String(field.border).match(/(rgba?\([^)]+\)|#[0-9a-fA-F]+)/);
+      if (cMatch) bColor = cMatch[1];
+
+      ctx.strokeStyle = bColor;
+      ctx.lineWidth = bWidth;
+      if (field.borderRadius) {
+        drawRoundedRect(ctx, field.x, field.y, field.width, field.height, field.borderRadius);
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(field.x, field.y, field.width, field.height);
+      }
+    }
+    ctx.restore();
   }
 
   /**
@@ -674,6 +829,8 @@
     renderToDOM,
     renderToCanvas,
     applyBackgroundToElement,
+    renderLeaderboardFieldDOM,
+    createFieldElement,
   };
 
   window.TemplateRenderer = TemplateRenderer;
