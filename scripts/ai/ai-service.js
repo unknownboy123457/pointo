@@ -653,6 +653,289 @@
       };
     },
 
+    /**
+     * Classify an image file as 'slot_list', 'end_result', or 'unknown'
+     * Inspects filename and OCR text (if available) with Free Fire tournament domain heuristics
+     */
+    classifyImageFile(file, ocrText = '') {
+      if (!file) return { category: 'unknown', confidence: 0.3, reason: 'No file provided' };
+
+      const name = (file.name || '').toLowerCase();
+      const text = (ocrText || '').toLowerCase();
+
+      // Check slot list / lobby keywords
+      const slotKeywords = ['slot', 'lobby', 'roster', 'room', 'waiting', 'invite', 'custom', 'squad', 'bermuda', 'purgatory'];
+      const endKeywords = ['result', 'end', 'booyah', 'kill', 'elim', 'match', 'score', 'damage', 'survival', 'rank', 'mvp'];
+
+      let slotScore = 0;
+      let endScore = 0;
+
+      slotKeywords.forEach((kw) => {
+        if (name.includes(kw)) slotScore += 2;
+        if (text.includes(kw)) slotScore += 1;
+      });
+
+      endKeywords.forEach((kw) => {
+        if (name.includes(kw)) endScore += 2;
+        if (text.includes(kw)) endScore += 1;
+      });
+
+      if (slotScore > endScore && slotScore >= 2) {
+        return { category: 'slot_list', confidence: Math.min(0.95, 0.6 + slotScore * 0.1), reason: 'Detected lobby/slot keywords' };
+      }
+      if (endScore > slotScore && endScore >= 2) {
+        return { category: 'end_result', confidence: Math.min(0.95, 0.6 + endScore * 0.1), reason: 'Detected match result keywords' };
+      }
+
+      // If only single weak hint
+      if (slotScore > 0 && endScore === 0) {
+        return { category: 'slot_list', confidence: 0.7, reason: 'Likely slot list' };
+      }
+      if (endScore > 0 && slotScore === 0) {
+        return { category: 'end_result', confidence: 0.7, reason: 'Likely match result' };
+      }
+
+      return { category: 'unknown', confidence: 0.4, reason: 'Uncertain category — please select' };
+    },
+
+    /**
+     * Complete 12-slot extraction pipeline supporting multi-screenshot upload
+     * Outputs exact 12 slots, unassigned players, and match end results
+     */
+    async extract12SlotsAndResults({ slotListFiles = [], endResultFiles = [], existingSlots = [] }, onProgress) {
+      const progress = (pct, msg) => {
+        if (typeof onProgress === 'function') onProgress(pct, msg);
+      };
+
+      progress(10, 'Analyzing uploaded screenshots...');
+
+      // 1. Initialize exact 12 slots
+      const slots = [];
+      for (let i = 1; i <= 12; i++) {
+        const existing = existingSlots.find((s) => s.slot === i);
+        slots.push({
+          slot: i,
+          teamName: existing?.teamName || `Team ${i}`,
+          players: existing?.players ? JSON.parse(JSON.stringify(existing.players)) : [],
+          isActive: existing?.isActive !== false,
+          isCleared: false,
+          source: existing?.source || 'Manual',
+          status: 'verified',
+        });
+      }
+
+      const unassignedPlayers = [];
+      const warnings = [];
+
+      // 2. Process all slot list files
+      for (let sIdx = 0; sIdx < slotListFiles.length; sIdx++) {
+        const file = slotListFiles[sIdx];
+        if (!file) continue;
+        progress(20 + Math.round(((sIdx + 1) / Math.max(1, slotListFiles.length)) * 25), `Extracting slot list ${sIdx + 1} of ${slotListFiles.length}...`);
+
+        let extractedRoster = [];
+        try {
+          const res = await this.extractSlotList(file);
+          if (res.rawText) {
+            extractedRoster = this.parseLobbyRosterText(res.rawText);
+          } else if (res.entries && res.entries.length > 0) {
+            extractedRoster = res.entries.map((e) => ({
+              slot: e.slot,
+              teamName: e.teamName,
+              players: [],
+            }));
+          }
+        } catch (e) {
+          console.warn('Slot list extraction error:', e);
+        }
+
+        // Merge extracted roster into 12 slots
+        extractedRoster.forEach((item) => {
+          if (item.slot >= 1 && item.slot <= 12) {
+            const slotObj = slots[item.slot - 1];
+            if (item.teamName && !slotObj.teamName.startsWith('Team ')) {
+              slotObj.teamName = item.teamName;
+            } else if (item.teamName) {
+              slotObj.teamName = item.teamName;
+            }
+            slotObj.source = file.name || `Screen ${sIdx + 1}`;
+            slotObj.status = 'verified';
+
+            if (Array.isArray(item.players)) {
+              item.players.forEach((p) => {
+                const pName = typeof p === 'string' ? p.trim() : (p.name || '').trim();
+                if (pName && !slotObj.players.some((existingP) => existingP.name.toLowerCase() === pName.toLowerCase())) {
+                  slotObj.players.push({
+                    id: 'p_' + Math.random().toString(36).substr(2, 6),
+                    name: pName,
+                    kills: 0,
+                  });
+                }
+              });
+            }
+          } else {
+            // Player/team without valid 1-12 slot number -> Unassigned
+            if (Array.isArray(item.players) && item.players.length > 0) {
+              item.players.forEach((p) => {
+                const pName = typeof p === 'string' ? p : p.name;
+                unassignedPlayers.push({
+                  id: 'un_' + Math.random().toString(36).substr(2, 6),
+                  name: pName,
+                  source: file.name,
+                  kills: 0,
+                });
+              });
+            } else if (item.teamName) {
+              unassignedPlayers.push({
+                id: 'un_' + Math.random().toString(36).substr(2, 6),
+                name: item.teamName,
+                source: file.name,
+                kills: 0,
+              });
+            }
+          }
+        });
+      }
+
+      // Check duplicate player names across slots
+      const seenPlayerSlotMap = new Map();
+      slots.forEach((s) => {
+        s.players.forEach((p) => {
+          const norm = p.name.toLowerCase().trim();
+          if (seenPlayerSlotMap.has(norm)) {
+            warnings.push(`Potential duplicate player "${p.name}" found in Slot ${seenPlayerSlotMap.get(norm)} and Slot ${s.slot}.`);
+            s.status = 'review';
+          } else {
+            seenPlayerSlotMap.set(norm, s.slot);
+          }
+        });
+      });
+
+      // 3. Process all end result files
+      const seenResultNames = new Set();
+      const extractedResults = [];
+
+      for (let rIdx = 0; rIdx < endResultFiles.length; rIdx++) {
+        const file = endResultFiles[rIdx];
+        if (!file) continue;
+        progress(50 + Math.round(((rIdx + 1) / Math.max(1, endResultFiles.length)) * 30), `Extracting match result ${rIdx + 1} of ${endResultFiles.length}...`);
+
+        let matchResults = [];
+        try {
+          const res = await this.extractSlotList(file);
+          if (res.rawText) {
+            matchResults = this.parseMatchResultsText(res.rawText);
+          } else if (res.entries) {
+            matchResults = res.entries.map((e) => ({ name: e.teamName, kills: 0, rank: e.slot }));
+          }
+        } catch (e) {
+          console.warn('Result extraction error:', e);
+        }
+
+        // Deduplicate across overlapping screenshots
+        matchResults.forEach((entry) => {
+          const norm = (entry.name || '').toLowerCase().trim();
+          if (norm && !seenResultNames.has(norm)) {
+            seenResultNames.add(norm);
+            extractedResults.push({ ...entry, sourceFile: file.name });
+          }
+        });
+      }
+
+      // 4. Distribute results to the 12 slots using the lobby roster
+      const slotResults = slots.map((s) => ({
+        slot: s.slot,
+        teamName: s.teamName,
+        placement: null,
+        teamKillsOverride: null,
+        totalKills: 0,
+        isExcluded: false,
+        source: s.source,
+        warnings: [],
+      }));
+
+      extractedResults.forEach((res) => {
+        const resNorm = res.name.toLowerCase().trim();
+        let matched = false;
+
+        // Try matching with team players
+        for (let i = 0; i < slots.length; i++) {
+          const slot = slots[i];
+          const pIdx = slot.players.findIndex((p) => p.name.toLowerCase().trim() === resNorm);
+          if (pIdx !== -1) {
+            slot.players[pIdx].kills = Number(res.kills) || 0;
+            if (res.rank && !slotResults[i].placement) {
+              slotResults[i].placement = res.rank;
+            }
+            matched = true;
+            break;
+          }
+        }
+
+        // Try matching with team name
+        if (!matched) {
+          for (let i = 0; i < slots.length; i++) {
+            const slot = slots[i];
+            if (slot.teamName.toLowerCase().trim() === resNorm) {
+              if (slot.players.length === 0) {
+                slotResults[i].teamKillsOverride = Number(res.kills) || 0;
+              } else {
+                slot.players.push({
+                  id: 'p_' + Math.random().toString(36).substr(2, 6),
+                  name: `${res.name} (Player)`,
+                  kills: Number(res.kills) || 0,
+                });
+              }
+              if (res.rank && !slotResults[i].placement) {
+                slotResults[i].placement = res.rank;
+              }
+              matched = true;
+              break;
+            }
+          }
+        }
+
+        // If unmatched, add warning
+        if (!matched) {
+          warnings.push(`Result for "${res.name}" (${res.kills} kills${res.rank ? ', Rank #' + res.rank : ''}) could not be matched to any slot.`);
+        }
+      });
+
+      // 5. Calculate total team kills for each slot
+      slotResults.forEach((sr, idx) => {
+        const slot = slots[idx];
+        if (sr.teamKillsOverride !== null) {
+          sr.totalKills = Number(sr.teamKillsOverride) || 0;
+        } else {
+          sr.totalKills = slot.players.reduce((sum, p) => sum + (Number(p.kills) || 0), 0);
+        }
+      });
+
+      // 6. Check duplicate placements
+      const placementCount = new Map();
+      slotResults.forEach((sr) => {
+        if (sr.placement) {
+          placementCount.set(sr.placement, (placementCount.get(sr.placement) || 0) + 1);
+        }
+      });
+      slotResults.forEach((sr) => {
+        if (sr.placement && placementCount.get(sr.placement) > 1) {
+          sr.warnings.push(`Duplicate placement #${sr.placement}`);
+          warnings.push(`Duplicate placement: Multiple teams placed at #${sr.placement}. Please review.`);
+        }
+      });
+
+      progress(100, 'Analysis complete!');
+
+      return {
+        success: true,
+        slots,
+        unassignedPlayers,
+        results: slotResults,
+        warnings,
+      };
+    },
+
     // Expose utilities
     validateImageFile,
     createPreviewUrl,

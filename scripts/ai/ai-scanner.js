@@ -1,6 +1,9 @@
 /* ====================================================================
    LRD PointCalc — AI Result Scanner & Slot List Manager Module
-   Full AI + Manual workflow matching PointCalc AI visual reference
+   Full Multi-Screenshot Upload + 12-Slot Review System
+   Aesthetic: PointCalc AI Deep-Purple & Glowing Gradients
+   Deterministic scoring single source of truth: ScoringEngine
+   On-device local storage: LocalDatabaseService
    ==================================================================== */
 
 (function (window) {
@@ -13,20 +16,33 @@
   let activeMatchNumber = 1;
   let activeMultiplier = 1;
   let currentOwnerId = null;
+  let returnScreen = 'tournament-dashboard';
+
+  // Unified multi-screenshot uploads array
+  // Each item: { id, file, previewUrl, name, size, category: 'slot_list'|'end_result'|'unknown', confidence: number, status: string }
+  let uploadedScreenshots = [];
+
+  // Exactly 12 slots roster state (Slots 01 to 12)
+  // Each item: { slot: 1..12, teamName: string, players: Array<{id, name, kills}>, isActive: boolean, isCleared: boolean, source: string, status: 'verified'|'review'|'inactive' }
+  let slots = [];
+
+  // Unassigned players bucket (players where slot was not determinable)
+  // Each item: { id, name, kills, source }
+  let unassignedPlayers = [];
+
+  // 12-slot Match End Results state (Slots 01 to 12)
+  // Each item: { slot: 1..12, teamName: string, placement: number|null, teamKillsOverride: number|null, totalKills: number, isExcluded: boolean, warnings: string[] }
+  let results = [];
+
+  // Remember lobby roster preference
+  let rememberLobbyEnabled = true;
+
+  // Expanded card tracking for accordion behavior
+  const expandedSlotCards = new Set();
+  const expandedResultCards = new Set();
 
   // History stack for undo
   const historyStack = [];
-
-  // Screenshot previews
-  let lobbyScreenshot = null; // { file, previewUrl, name }
-  const resultScreenshots = [null, null]; // [0] = Top/Screen 1, [1] = Bottom/Screen 2
-
-  // Roster state
-  let currentRoster = [];
-  let rememberLobbyEnabled = true;
-
-  // Track expanded team cards
-  const expandedCards = new Set();
 
   /**
    * Escape HTML utility
@@ -41,27 +57,16 @@
       .replace(/'/g, '&#39;');
   }
 
-  /**
-   * Push state snapshot for Undo
-   */
-  function pushHistory() {
-    if (historyStack.length > 20) historyStack.shift();
-    historyStack.push(JSON.stringify(currentRoster));
+  function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 KB';
+    const kb = bytes / 1024;
+    if (kb < 1024) return Math.round(kb) + ' KB';
+    return (kb / 1024).toFixed(1) + ' MB';
   }
 
-  /**
-   * Undo last change
-   */
-  function undoLastChange() {
-    if (historyStack.length === 0) return false;
-    const prev = historyStack.pop();
-    try {
-      currentRoster = JSON.parse(prev);
-      renderTeamsList();
-      return true;
-    } catch (e) {
-      return false;
-    }
+  function pushHistory() {
+    if (historyStack.length > 20) historyStack.shift();
+    historyStack.push(JSON.stringify({ slots, unassignedPlayers, results }));
   }
 
   // ==================================================================
@@ -70,21 +75,82 @@
   const AIScanner = {
     init() {
       this.bindUI();
-      console.log('LRD PointCalc: AIScanner module initialized.');
+      console.log('LRD PointCalc: AIScanner unified 12-slot module initialized.');
     },
 
     bindUI() {
-      // Back button
+      // Header Back button
       document.getElementById('scanner-btn-back')?.addEventListener('click', () => {
         this.close();
       });
 
-      // Mode Switcher buttons
+      // Mode Switcher buttons (AI vs Manual)
       document.getElementById('scanner-mode-ai')?.addEventListener('click', () => {
         this.switchMode('ai');
       });
       document.getElementById('scanner-mode-manual')?.addEventListener('click', () => {
         this.switchMode('manual');
+      });
+
+      // Tutorial play button
+      document.getElementById('scanner-btn-tutorial')?.addEventListener('click', () => {
+        if (window.showToast) {
+          window.showToast('Guide: 1. Upload screenshots. 2. Verify categories. 3. Tap Analyze. 4. Review 12 slots & points. 5. Confirm & Save.');
+        }
+      });
+
+      // Unified File input & Dropzone
+      const unifiedFileInput = document.getElementById('scanner-unified-file-input');
+      unifiedFileInput?.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          this.addScreenshots(Array.from(e.target.files));
+          e.target.value = ''; // reset so same files can be re-selected if desired
+        }
+      });
+
+      document.getElementById('scanner-btn-add-screenshots')?.addEventListener('click', () => {
+        unifiedFileInput?.click();
+      });
+      document.getElementById('scanner-btn-add-more')?.addEventListener('click', () => {
+        unifiedFileInput?.click();
+      });
+
+      document.getElementById('scanner-btn-clear-all')?.addEventListener('click', () => {
+        this.clearAllScreenshots();
+      });
+
+      // Drag and drop on unified dropzone
+      const dropzone = document.getElementById('scanner-unified-dropzone');
+      if (dropzone) {
+        ['dragenter', 'dragover'].forEach((evName) => {
+          dropzone.addEventListener(evName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('drag-active');
+          });
+        });
+
+        ['dragleave', 'drop'].forEach((evName) => {
+          dropzone.addEventListener(evName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('drag-active');
+          });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+          if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            this.addScreenshots(Array.from(e.dataTransfer.files));
+          }
+        });
+      }
+
+      // Analyze All Screenshots CTA buttons
+      document.getElementById('scanner-btn-analyze-all')?.addEventListener('click', () => {
+        this.processAllScreenshots();
+      });
+      document.getElementById('scanner-btn-analyze-bottom')?.addEventListener('click', () => {
+        this.processAllScreenshots();
       });
 
       // Remember Lobby switch
@@ -96,7 +162,7 @@
         });
       }
 
-      // Slot List selector
+      // Saved Slot List selector
       document.getElementById('scanner-slotlist-select')?.addEventListener('change', (e) => {
         const selectedId = e.target.value;
         if (selectedId) {
@@ -114,117 +180,75 @@
         this.openSlotListModal();
       });
 
-      // Lobby Screenshot inputs
-      const lobbyInput = document.getElementById('scanner-lobby-file-input');
-      lobbyInput?.addEventListener('change', (e) => {
-        const file = e.target.files?.[0];
-        if (file) this.setLobbyScreenshot(file);
+      // Action Bar: Review Next Issue
+      document.getElementById('scanner-btn-review-next')?.addEventListener('click', () => {
+        this.reviewNextUncertainItem();
       });
 
-      document.getElementById('scanner-btn-update-lobby')?.addEventListener('click', () => {
-        lobbyInput?.click();
-      });
-      document.getElementById('scanner-thumb-lobby')?.addEventListener('click', () => {
-        lobbyInput?.click();
-      });
-      document.getElementById('scanner-btn-del-lobby')?.addEventListener('click', () => {
-        this.clearLobbyScreenshot();
-      });
-
-      // Result Screenshot 1 inputs
-      const res1Input = document.getElementById('scanner-res1-file-input');
-      res1Input?.addEventListener('change', (e) => {
-        const file = e.target.files?.[0];
-        if (file) this.setResultScreenshot(0, file);
-      });
-      document.getElementById('scanner-btn-update-res1')?.addEventListener('click', () => {
-        res1Input?.click();
-      });
-      document.getElementById('scanner-thumb-res1')?.addEventListener('click', () => {
-        res1Input?.click();
-      });
-      document.getElementById('scanner-btn-del-res1')?.addEventListener('click', () => {
-        this.clearResultScreenshot(0);
-      });
-
-      // Result Screenshot 2 inputs
-      const res2Input = document.getElementById('scanner-res2-file-input');
-      res2Input?.addEventListener('change', (e) => {
-        const file = e.target.files?.[0];
-        if (file) this.setResultScreenshot(1, file);
-      });
-      document.getElementById('scanner-btn-update-res2')?.addEventListener('click', () => {
-        res2Input?.click();
-      });
-      document.getElementById('scanner-thumb-res2')?.addEventListener('click', () => {
-        res2Input?.click();
-      });
-      document.getElementById('scanner-btn-del-res2')?.addEventListener('click', () => {
-        this.clearResultScreenshot(1);
-      });
-
-      // Main Upload All Screenshots button
-      document.getElementById('scanner-btn-upload-all')?.addEventListener('click', () => {
-        this.processAllScreenshots();
-      });
-
-      // Save Results button
-      document.getElementById('scanner-btn-save-results')?.addEventListener('click', () => {
-        this.confirmAndSaveResults();
-      });
-
-      // Recalculate button
-      document.getElementById('scanner-btn-recalc')?.addEventListener('click', () => {
-        this.recalculateAll();
-        if (window.showToast) window.showToast('Points recalculated');
-      });
-
-      // Reset Overrides button
+      // Action Bar: Reset Overrides
       document.getElementById('scanner-btn-reset-overrides')?.addEventListener('click', () => {
         this.resetAllOverrides();
       });
 
-      // Add Team button
-      document.getElementById('scanner-btn-add-team-slot')?.addEventListener('click', () => {
-        this.addSlot();
+      // Action Bar: Recalculate Points
+      document.getElementById('scanner-btn-recalc')?.addEventListener('click', () => {
+        this.recalculateAll();
+        if (window.showToast) window.showToast('Points recalculated by ScoringEngine');
       });
 
-      // Tutorial play button
-      document.getElementById('scanner-btn-tutorial')?.addEventListener('click', () => {
-        if (window.showToast) {
-          window.showToast('Quick Guide: 1. Add Lobby screenshot or select saved roster. 2. Add 2 result screenshots. 3. Tap Upload All Screenshots.');
-        }
+      // Action Bar: Confirm & Save Results
+      document.getElementById('scanner-btn-save-results')?.addEventListener('click', () => {
+        this.confirmAndSaveResults();
+      });
+
+      // Saved Slot Lists modal close
+      document.getElementById('scanner-btn-close-sl-modal')?.addEventListener('click', () => {
+        document.getElementById('scanner-slotlist-modal')?.classList.remove('open');
       });
     },
 
     /**
      * Open Scanner screen for a tournament and match
      */
-    open({ tournamentId, matchNumber = 1, matchId = null, multiplier = 1, ownerUserId = null }) {
-      activeTournamentId = tournamentId;
-      activeMatchNumber = Number(matchNumber) || 1;
-      activeMatchId = matchId;
-      activeMultiplier = Number(multiplier) || 1;
+    open({ tournamentId = null, matchNumber = 1, matchId = null, multiplier = 1, ownerUserId = null, returnScreen: retScr = null } = {}) {
       currentOwnerId = ownerUserId || (window.currentUser ? window.currentUser.id : null);
+      returnScreen = retScr || 'tournament-dashboard';
+      activeMatchNumber = Number(matchNumber) || 1;
+      activeMultiplier = Number(multiplier) || 1;
+      activeMatchId = matchId;
 
-      // Populate header info
-      const tournNameEl = document.getElementById('scanner-tournament-name');
-      const badgeEl = document.getElementById('scanner-match-badge');
-      if (tournNameEl && window.LocalDatabaseService) {
-        const t = window.LocalDatabaseService.getTournamentById(tournamentId, currentOwnerId);
-        tournNameEl.textContent = t ? t.name : 'Free Fire Tournament';
+      // Resolve tournament
+      if (tournamentId) {
+        activeTournamentId = tournamentId;
+      } else if (window.LocalDatabaseService && currentOwnerId) {
+        const tourns = window.LocalDatabaseService.getTournaments(currentOwnerId);
+        if (tourns && tourns.length > 0) {
+          activeTournamentId = tourns[0].id;
+        } else {
+          // Auto-create a default tournament so user is never blocked
+          const created = window.LocalDatabaseService.createTournament(currentOwnerId, {
+            name: 'Free Fire Cup',
+            game_mode: 'squad',
+            team_count: 12,
+            scoring_system: 'default',
+          });
+          activeTournamentId = created ? created.id : null;
+        }
       }
+
+      // Populate header badge
+      const badgeEl = document.getElementById('scanner-match-badge');
       if (badgeEl) {
         badgeEl.textContent = `Match ${activeMatchNumber} • ${activeMultiplier}x`;
       }
 
-      // Initialize or load roster
-      this.initRosterForMatch();
+      // Initialize exact 12 slots structure
+      this.init12SlotsForMatch();
 
       // Refresh saved slot list dropdown
       this.refreshSlotListsDropdown();
 
-      // Show screen
+      // Switch to screen
       if (window.navigateTo) {
         window.navigateTo('ai-scanner');
       } else {
@@ -237,14 +261,14 @@
 
     close() {
       if (window.navigateTo) {
-        window.navigateTo('tournament-dashboard');
+        window.navigateTo(returnScreen || 'tournament-dashboard');
       } else {
         document.getElementById('screen-ai-scanner')?.classList.remove('active');
       }
     },
 
     /**
-     * Switch between AI Mode and Manual Mode without losing unsaved roster data
+     * Switch between AI Mode and Manual Mode
      */
     switchMode(mode) {
       if (mode !== 'ai' && mode !== 'manual') return;
@@ -255,835 +279,1222 @@
       aiBtn?.classList.toggle('active', mode === 'ai');
       manualBtn?.classList.toggle('active', mode === 'manual');
 
-      // Update bottom action buttons
-      const uploadBtn = document.getElementById('scanner-btn-upload-all');
-      const saveBtn = document.getElementById('scanner-btn-save-results');
+      // In manual mode, hide the screenshot upload card
+      const uploadCard = document.getElementById('scanner-card-unified-upload');
+      if (uploadCard) {
+        uploadCard.style.display = mode === 'manual' ? 'none' : 'block';
+      }
 
-      if (mode === 'ai') {
-        if (uploadBtn) uploadBtn.style.display = 'flex';
-        if (saveBtn) saveBtn.style.display = 'flex';
-      } else {
-        if (uploadBtn) uploadBtn.style.display = 'none';
-        if (saveBtn) saveBtn.style.display = 'flex';
+      const analyzeBottomBtn = document.getElementById('scanner-btn-analyze-bottom');
+      if (analyzeBottomBtn) {
+        analyzeBottomBtn.style.display = mode === 'manual' ? 'none' : 'flex';
       }
 
       this.render();
-      if (window.showToast) window.showToast(`Switched to ${mode === 'ai' ? 'AI' : 'Manual'} Mode`);
+      if (window.showToast) {
+        window.showToast(`Switched to ${mode === 'ai' ? 'AI' : 'Manual'} Mode`);
+      }
     },
 
-    /**
-     * Initialize roster from existing tournament teams or create default slots
-     */
-    initRosterForMatch() {
+    // ==================================================================
+    // 12-SLOT ROSTER INITIALIZATION
+    // ==================================================================
+    init12SlotsForMatch() {
       historyStack.length = 0;
-      currentRoster = [];
+      slots = [];
+      unassignedPlayers = [];
+      results = [];
 
+      let existingTeams = [];
       if (window.LocalDatabaseService && activeTournamentId) {
-        // If matchId has existing results, load them
-        if (activeMatchId) {
-          const results = window.LocalDatabaseService.getMatchResults(activeMatchId);
-          const teamsWithPlayers = window.LocalDatabaseService.getTeamsWithPlayers(activeTournamentId);
-          const resMap = new Map(results.map((r) => [r.team_id, r]));
-
-          if (teamsWithPlayers.length > 0) {
-            teamsWithPlayers.forEach((twp, idx) => {
-              const res = resMap.get(twp.id);
-              currentRoster.push({
-                slot: idx + 1,
-                teamId: twp.id,
-                teamName: twp.name,
-                players: (twp.players || []).map((p) => ({
-                  id: p.id,
-                  name: p.name,
-                  kills: 0,
-                })),
-                teamKillsOverride: res ? res.kills : null,
-                placement: res ? res.placement : (idx + 1),
-                isRemoved: false,
-              });
-            });
-            return;
-          }
-        }
-
-        // Otherwise load registered teams from tournament
-        const teamsWithPlayers = window.LocalDatabaseService.getTeamsWithPlayers(activeTournamentId);
-        if (teamsWithPlayers.length > 0) {
-          teamsWithPlayers.forEach((twp, idx) => {
-            currentRoster.push({
-              slot: idx + 1,
-              teamId: twp.id,
-              teamName: twp.name,
-              players: (twp.players || []).map((p) => ({
-                id: p.id,
-                name: p.name,
-                kills: 0,
-              })),
-              teamKillsOverride: null,
-              placement: idx + 1,
-              isRemoved: false,
-            });
-          });
-          return;
-        }
+        existingTeams = window.LocalDatabaseService.getTeamsWithPlayers(activeTournamentId);
       }
 
-      // Default 12 teams if no database records
+      // Exactly 12 slots
       for (let i = 1; i <= 12; i++) {
-        currentRoster.push({
+        const team = existingTeams[i - 1];
+        const teamName = team ? team.name : `Team ${i}`;
+        const pList = team && Array.isArray(team.players)
+          ? team.players.map((p) => ({ id: p.id || 'p_' + Math.random().toString(36).substr(2, 6), name: p.name, kills: 0 }))
+          : [
+              { id: 'p_' + Math.random().toString(36).substr(2, 6), name: `Player ${i}A`, kills: 0 },
+              { id: 'p_' + Math.random().toString(36).substr(2, 6), name: `Player ${i}B`, kills: 0 },
+              { id: 'p_' + Math.random().toString(36).substr(2, 6), name: `Player ${i}C`, kills: 0 },
+              { id: 'p_' + Math.random().toString(36).substr(2, 6), name: `Player ${i}D`, kills: 0 },
+            ];
+
+        slots.push({
           slot: i,
-          teamId: `team_${i}`,
-          teamName: `Team ${i}`,
-          players: [
-            { name: `Player ${i}-1`, kills: 0 },
-            { name: `Player ${i}-2`, kills: 0 },
-            { name: `Player ${i}-3`, kills: 0 },
-            { name: `Player ${i}-4`, kills: 0 },
-          ],
+          teamId: team ? team.id : null,
+          teamName: teamName,
+          players: pList,
+          isActive: true,
+          isCleared: false,
+          source: team ? 'Tournament Roster' : 'Default',
+          status: 'verified',
+        });
+
+        results.push({
+          slot: i,
+          teamId: team ? team.id : null,
+          teamName: teamName,
+          placement: i, // default seed
           teamKillsOverride: null,
-          placement: i,
-          isRemoved: false,
+          totalKills: 0,
+          isExcluded: false,
+          warnings: [],
         });
       }
-    },
 
-    // ==================================================================
-    // SCREENSHOT MANAGEMENT
-    // ==================================================================
-    setLobbyScreenshot(file) {
-      if (lobbyScreenshot && lobbyScreenshot.previewUrl) {
-        URL.revokeObjectURL(lobbyScreenshot.previewUrl);
-      }
-      const previewUrl = URL.createObjectURL(file);
-      lobbyScreenshot = { file, previewUrl, name: file.name };
-      this.updateScreenshotCardsUI();
-    },
-
-    clearLobbyScreenshot() {
-      if (lobbyScreenshot && lobbyScreenshot.previewUrl) {
-        URL.revokeObjectURL(lobbyScreenshot.previewUrl);
-      }
-      lobbyScreenshot = null;
-      this.updateScreenshotCardsUI();
-    },
-
-    setResultScreenshot(index, file) {
-      if (resultScreenshots[index] && resultScreenshots[index].previewUrl) {
-        URL.revokeObjectURL(resultScreenshots[index].previewUrl);
-      }
-      const previewUrl = URL.createObjectURL(file);
-      resultScreenshots[index] = { file, previewUrl, name: file.name };
-      this.updateScreenshotCardsUI();
-    },
-
-    clearResultScreenshot(index) {
-      if (resultScreenshots[index] && resultScreenshots[index].previewUrl) {
-        URL.revokeObjectURL(resultScreenshots[index].previewUrl);
-      }
-      resultScreenshots[index] = null;
-      this.updateScreenshotCardsUI();
-    },
-
-    updateScreenshotCardsUI() {
-      // Lobby preview
-      const lobbyThumb = document.getElementById('scanner-thumb-lobby');
-      if (lobbyThumb) {
-        if (lobbyScreenshot) {
-          lobbyThumb.innerHTML = `
-            <img src="${lobbyScreenshot.previewUrl}" class="scanner-preview-thumb-img" alt="Lobby Screenshot" />
-            <span class="scanner-preview-slot-tag">Lobby 1-12</span>
-          `;
-        } else {
-          lobbyThumb.innerHTML = `
-            <div class="scanner-preview-empty">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span class="scanner-preview-empty-text">Add Lobby</span>
-            </div>
-            <span class="scanner-preview-slot-tag">Slots 1-12</span>
-          `;
-        }
-      }
-
-      // Result 1 preview
-      const res1Thumb = document.getElementById('scanner-thumb-res1');
-      if (res1Thumb) {
-        if (resultScreenshots[0]) {
-          res1Thumb.innerHTML = `
-            <img src="${resultScreenshots[0].previewUrl}" class="scanner-preview-thumb-img" alt="Result 1" />
-            <span class="scanner-preview-slot-tag">R1 (Top)</span>
-          `;
-        } else {
-          res1Thumb.innerHTML = `
-            <div class="scanner-preview-empty">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span class="scanner-preview-empty-text">Add Screen 1</span>
-            </div>
-            <span class="scanner-preview-slot-tag">R1 (Top)</span>
-          `;
-        }
-      }
-
-      // Result 2 preview
-      const res2Thumb = document.getElementById('scanner-thumb-res2');
-      if (res2Thumb) {
-        if (resultScreenshots[1]) {
-          res2Thumb.innerHTML = `
-            <img src="${resultScreenshots[1].previewUrl}" class="scanner-preview-thumb-img" alt="Result 2" />
-            <span class="scanner-preview-slot-tag">R2 (Bottom)</span>
-          `;
-        } else {
-          res2Thumb.innerHTML = `
-            <div class="scanner-preview-empty">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span class="scanner-preview-empty-text">Add Screen 2</span>
-            </div>
-            <span class="scanner-preview-slot-tag">R2 (Bottom)</span>
-          `;
-        }
-      }
-    },
-
-    // ==================================================================
-    // AI EXTRACTION EXECUTION
-    // ==================================================================
-    async processAllScreenshots() {
-      const progressCard = document.getElementById('scanner-progress-card');
-      const progressFill = document.getElementById('scanner-progress-fill');
-      const progressPct = document.getElementById('scanner-progress-pct');
-      const progressMsg = document.getElementById('scanner-progress-msg');
-      const warningContainer = document.getElementById('scanner-warnings-container');
-
-      if (warningContainer) warningContainer.innerHTML = '';
-      if (progressCard) progressCard.style.display = 'block';
-
-      const updateProgress = (pct, msg) => {
-        if (progressFill) progressFill.style.width = `${pct}%`;
-        if (progressPct) progressPct.textContent = `${pct}%`;
-        if (progressMsg) progressMsg.textContent = msg;
-      };
-
-      try {
-        pushHistory();
-        const lobbyFile = lobbyScreenshot ? lobbyScreenshot.file : null;
-        const validResFiles = resultScreenshots.filter((r) => r !== null).map((r) => r.file);
-
-        if (!lobbyFile && validResFiles.length === 0) {
-          throw new Error('Please upload either a lobby screenshot or result screenshot to scan.');
-        }
-
-        const AIService = window.AIService;
-        if (!AIService) {
-          throw new Error('AI Service is not loaded.');
-        }
-
-        const extraction = await AIService.extractFullMatchScreenshots(
-          { lobbyFile, resultFiles: validResFiles },
-          updateProgress
-        );
-
-        if (extraction && extraction.teams && extraction.teams.length > 0) {
-          // Merge extraction into current roster while preserving teamIds
-          extraction.teams.forEach((extTeam, idx) => {
-            if (idx < currentRoster.length) {
-              currentRoster[idx].teamName = extTeam.teamName || currentRoster[idx].teamName;
-              if (extTeam.players && extTeam.players.length > 0) {
-                currentRoster[idx].players = extTeam.players;
-              }
-              if (extTeam.placement) {
-                currentRoster[idx].placement = extTeam.placement;
-              }
-              if (extTeam.teamKillsOverride !== null) {
-                currentRoster[idx].teamKillsOverride = extTeam.teamKillsOverride;
-              }
-            } else {
-              currentRoster.push(extTeam);
+      // Check if activeMatchId has existing saved results
+      if (window.LocalDatabaseService && activeMatchId) {
+        const savedResults = window.LocalDatabaseService.getMatchResults(activeMatchId);
+        if (savedResults && savedResults.length > 0) {
+          const resMap = new Map(savedResults.map((r) => [r.team_id, r]));
+          results.forEach((r, idx) => {
+            const team = existingTeams[idx];
+            if (team && resMap.has(team.id)) {
+              const sr = resMap.get(team.id);
+              r.placement = sr.placement;
+              r.teamKillsOverride = sr.kills;
+              r.totalKills = sr.kills;
             }
           });
-
-          // Show extraction warnings if any
-          if (extraction.warnings && extraction.warnings.length > 0 && warningContainer) {
-            warningContainer.innerHTML = `
-              <div class="scanner-warning-box">
-                <strong>Extraction Warnings (${extraction.warnings.length}):</strong>
-                ${extraction.warnings.map((w) => `<div>• ${escapeHtml(w)}</div>`).join('')}
-              </div>
-            `;
-          }
-
-          if (rememberLobbyEnabled && lobbyFile) {
-            this.autoSaveLobbyRoster();
-          }
-
-          this.recalculateAll();
-          this.render();
-          if (window.showToast) window.showToast('Screenshots extracted successfully!');
         }
-      } catch (err) {
-        console.error('AIScanner: Extraction error:', err);
-        if (progressMsg) progressMsg.textContent = `Error: ${err.message}`;
-        if (window.showToast) window.showToast(err.message);
-      } finally {
-        setTimeout(() => {
-          if (progressCard) progressCard.style.display = 'none';
-        }, 2000);
       }
-    },
-
-    // ==================================================================
-    // SLOT & TEAM EDITING
-    // ==================================================================
-    updateTeamName(slotIndex, newName) {
-      if (!currentRoster[slotIndex]) return;
-      pushHistory();
-      currentRoster[slotIndex].teamName = String(newName || '').trim();
-      this.renderTeamsList();
-    },
-
-    updatePlayerKill(slotIndex, playerIndex, kills) {
-      if (!currentRoster[slotIndex] || !currentRoster[slotIndex].players[playerIndex]) return;
-      pushHistory();
-      const numKills = Math.max(0, parseInt(kills, 10) || 0);
-      currentRoster[slotIndex].players[playerIndex].kills = numKills;
-
-      // If team override was active, keep it; otherwise recalculate total
-      this.recalculateTeam(slotIndex);
-      this.renderTeamCard(slotIndex);
-    },
-
-    overrideTeamKills(slotIndex, totalKills) {
-      if (!currentRoster[slotIndex]) return;
-      pushHistory();
-      const num = Math.max(0, parseInt(totalKills, 10) || 0);
-      currentRoster[slotIndex].teamKillsOverride = num;
-      this.recalculateTeam(slotIndex);
-      this.renderTeamCard(slotIndex);
-    },
-
-    resetTeamKillsOverride(slotIndex) {
-      if (!currentRoster[slotIndex]) return;
-      pushHistory();
-      currentRoster[slotIndex].teamKillsOverride = null;
-      this.recalculateTeam(slotIndex);
-      this.renderTeamCard(slotIndex);
-    },
-
-    addPlayer(slotIndex, playerName = '') {
-      if (!currentRoster[slotIndex]) return;
-      pushHistory();
-      const count = currentRoster[slotIndex].players.length + 1;
-      currentRoster[slotIndex].players.push({
-        id: `p_new_${Date.now()}_${count}`,
-        name: playerName || `Player ${count}`,
-        kills: 0,
-      });
-      this.recalculateTeam(slotIndex);
-      this.renderTeamCard(slotIndex);
-    },
-
-    removePlayer(slotIndex, playerIndex) {
-      if (!currentRoster[slotIndex] || !currentRoster[slotIndex].players[playerIndex]) return;
-      pushHistory();
-      currentRoster[slotIndex].players.splice(playerIndex, 1);
-      this.recalculateTeam(slotIndex);
-      this.renderTeamCard(slotIndex);
-    },
-
-    movePlayer(fromSlotIdx, playerIdx, toSlotIdx) {
-      if (!currentRoster[fromSlotIdx] || !currentRoster[toSlotIdx]) return;
-      if (fromSlotIdx === toSlotIdx) return;
-      pushHistory();
-
-      const [player] = currentRoster[fromSlotIdx].players.splice(playerIdx, 1);
-      if (player) {
-        currentRoster[toSlotIdx].players.push(player);
-        this.recalculateTeam(fromSlotIdx);
-        this.recalculateTeam(toSlotIdx);
-        this.renderTeamsList();
-      }
-    },
-
-    updatePlacement(slotIndex, placement) {
-      if (!currentRoster[slotIndex]) return;
-      pushHistory();
-      currentRoster[slotIndex].placement = placement ? parseInt(placement, 10) : null;
-      this.renderTeamsList();
-    },
-
-    removeTeamFromCalc(slotIndex) {
-      if (!currentRoster[slotIndex]) return;
-      pushHistory();
-      currentRoster[slotIndex].isRemoved = !currentRoster[slotIndex].isRemoved;
-      this.renderTeamsList();
-    },
-
-    addSlot() {
-      pushHistory();
-      const newSlotNum = currentRoster.length + 1;
-      currentRoster.push({
-        slot: newSlotNum,
-        teamId: `team_custom_${Date.now()}`,
-        teamName: `Team ${newSlotNum}`,
-        players: [
-          { name: `Player ${newSlotNum}-1`, kills: 0 },
-          { name: `Player ${newSlotNum}-2`, kills: 0 },
-        ],
-        teamKillsOverride: null,
-        placement: newSlotNum,
-        isRemoved: false,
-      });
-      this.renderTeamsList();
-    },
-
-    // ==================================================================
-    // SCORING ENGINE INTEGRATION
-    // ==================================================================
-    recalculateTeam(slotIndex) {
-      const team = currentRoster[slotIndex];
-      if (!team) return;
-
-      if (team.teamKillsOverride !== null) {
-        team.totalKills = Number(team.teamKillsOverride) || 0;
-      } else {
-        team.totalKills = (team.players || []).reduce((sum, p) => sum + (Number(p.kills) || 0), 0);
-      }
-    },
-
-    recalculateAll() {
-      currentRoster.forEach((_, idx) => this.recalculateTeam(idx));
-    },
-
-    getScoringBreakdown(team) {
-      const ScoringEngine = window.ScoringEngine;
-      let scoringCfg = null;
-      if (window.LocalDatabaseService && activeTournamentId) {
-        const t = window.LocalDatabaseService.getTournamentById(activeTournamentId, currentOwnerId);
-        if (t) scoringCfg = t.scoring_config || t.scoring_system;
-      }
-
-      const place = Number(team.placement) || 0;
-      const kills = Number(team.totalKills) || 0;
-
-      if (ScoringEngine) {
-        return ScoringEngine.calculateTeamPoints(place, kills, scoringCfg, activeMultiplier);
-      }
-      return {
-        placement: place,
-        kills,
-        placementPoints: 0,
-        killPoints: kills,
-        multiplier: activeMultiplier,
-        totalPoints: kills,
-      };
-    },
-
-    /**
-     * Check duplicate placements
-     */
-    getDuplicatePlacements() {
-      const counts = {};
-      currentRoster.forEach((t) => {
-        if (!t.isRemoved && t.placement) {
-          counts[t.placement] = (counts[t.placement] || 0) + 1;
-        }
-      });
-      return Object.keys(counts).filter((p) => counts[p] > 1).map(Number);
-    },
-
-    // ==================================================================
-    // SLOT LIST MANAGEMENT (SAVING & REUSING)
-    // ==================================================================
-    autoSaveLobbyRoster() {
-      if (!window.LocalDatabaseService || !currentOwnerId) return;
-      const name = `Auto Lobby - ${new Date().toLocaleDateString()}`;
-      window.LocalDatabaseService.saveSlotList(currentOwnerId, {
-        name,
-        slots: currentRoster.map((s) => ({
-          slot: s.slot,
-          teamName: s.teamName,
-          players: s.players.map((p) => p.name),
-        })),
-        tournament_id: activeTournamentId,
-      });
-      this.refreshSlotListsDropdown();
-    },
-
-    promptSaveSlotList() {
-      const name = prompt('Enter a name for this slot list (e.g. "Friday Live Lobby"):');
-      if (!name || !name.trim()) return;
-
-      if (window.LocalDatabaseService && currentOwnerId) {
-        const saved = window.LocalDatabaseService.saveSlotList(currentOwnerId, {
-          name: name.trim(),
-          slots: currentRoster.map((s) => ({
-            slot: s.slot,
-            teamName: s.teamName,
-            players: s.players.map((p) => p.name),
-          })),
-          tournament_id: activeTournamentId,
-        });
-        this.refreshSlotListsDropdown();
-        if (window.showToast) window.showToast(`Saved slot list: ${saved.name}`);
-      }
-    },
-
-    loadSlotList(slotListId) {
-      if (!window.LocalDatabaseService || !currentOwnerId) return;
-      const sl = window.LocalDatabaseService.getSlotListById(slotListId, currentOwnerId);
-      if (!sl || !Array.isArray(sl.slots)) return;
-
-      pushHistory();
-      currentRoster = sl.slots.map((s, idx) => ({
-        slot: s.slot || (idx + 1),
-        teamId: `team_sl_${s.slot || (idx + 1)}`,
-        teamName: s.teamName || `Team ${s.slot || (idx + 1)}`,
-        players: (s.players || []).map((p, pIdx) => ({
-          name: typeof p === 'string' ? p : (p.name || `Player ${pIdx + 1}`),
-          kills: 0,
-        })),
-        teamKillsOverride: null,
-        placement: idx + 1,
-        isRemoved: false,
-      }));
 
       this.recalculateAll();
-      this.renderTeamsList();
-      if (window.showToast) window.showToast(`Loaded slot list "${sl.name}"`);
-    },
-
-    refreshSlotListsDropdown() {
-      const select = document.getElementById('scanner-slotlist-select');
-      if (!select || !window.LocalDatabaseService || !currentOwnerId) return;
-
-      const lists = window.LocalDatabaseService.getSlotLists(currentOwnerId);
-      select.innerHTML = '<option value="">-- Use Saved Slot List --</option>';
-
-      lists.forEach((sl) => {
-        const opt = document.createElement('option');
-        opt.value = sl.id;
-        opt.textContent = `${sl.name} (${sl.slots ? sl.slots.length : 0} slots)`;
-        select.appendChild(opt);
-      });
-    },
-
-    openSlotListModal() {
-      const modal = document.getElementById('scanner-slotlist-modal');
-      const listContainer = document.getElementById('scanner-slotlists-modal-list');
-      if (!modal || !listContainer || !window.LocalDatabaseService || !currentOwnerId) return;
-
-      const lists = window.LocalDatabaseService.getSlotLists(currentOwnerId);
-      listContainer.innerHTML = '';
-
-      if (lists.length === 0) {
-        listContainer.innerHTML = '<div style="color: #94a3b8; padding: 12px; text-align: center;">No saved slot lists found.</div>';
-      } else {
-        lists.forEach((sl) => {
-          const row = document.createElement('div');
-          row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid rgba(168, 85, 247, 0.2);';
-          row.innerHTML = `
-            <div>
-              <div style="font-weight: 700; color: #ffffff;">${escapeHtml(sl.name)}</div>
-              <div style="font-size: 11px; color: #94a3b8;">${sl.slots ? sl.slots.length : 0} slots • Updated ${new Date(sl.updated_at).toLocaleDateString()}</div>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button type="button" class="scanner-slotlist-btn" data-action="load" data-id="${sl.id}">Load</button>
-              <button type="button" class="scanner-slotlist-btn" data-action="duplicate" data-id="${sl.id}">Duplicate</button>
-              <button type="button" class="scanner-slotlist-btn" data-action="delete" data-id="${sl.id}" style="color: #f87171;">Delete</button>
-            </div>
-          `;
-
-          row.querySelector('[data-action="load"]')?.addEventListener('click', () => {
-            this.loadSlotList(sl.id);
-            modal.classList.remove('open');
-          });
-
-          row.querySelector('[data-action="duplicate"]')?.addEventListener('click', () => {
-            window.LocalDatabaseService.duplicateSlotList(sl.id, currentOwnerId);
-            this.openSlotListModal();
-            this.refreshSlotListsDropdown();
-          });
-
-          row.querySelector('[data-action="delete"]')?.addEventListener('click', () => {
-            if (confirm(`Delete saved slot list "${sl.name}"?\n\nNote: This deletes only the saved roster template and will NOT affect existing tournament match results.`)) {
-              window.LocalDatabaseService.deleteSlotList(sl.id, currentOwnerId);
-              this.openSlotListModal();
-              this.refreshSlotListsDropdown();
-            }
-          });
-
-          listContainer.appendChild(row);
-        });
-      }
-
-      modal.classList.add('open');
-      document.getElementById('scanner-btn-close-sl-modal')?.addEventListener('click', () => {
-        modal.classList.remove('open');
-      });
     },
 
     // ==================================================================
-    // SAVE RESULTS & TOURNAMENT INTEGRATION
+    // MULTI-SCREENSHOT UNIFIED UPLOAD ENGINE
     // ==================================================================
-    confirmAndSaveResults() {
-      const duplicates = this.getDuplicatePlacements();
-      if (duplicates.length > 0) {
-        if (!confirm(`Warning: Duplicate placements detected for rank(s) ${duplicates.join(', ')}. Do you want to proceed and save anyway?`)) {
+    addScreenshots(files) {
+      if (!Array.isArray(files) || files.length === 0) return;
+
+      let addedCount = 0;
+      files.forEach((file) => {
+        // Prevent accidental duplicate file
+        const isDuplicate = uploadedScreenshots.some(
+          (s) => s.file.name === file.name && s.file.size === file.size
+        );
+        if (isDuplicate) return;
+
+        // Validate format
+        const val = window.AIService?.validateImageFile(file);
+        if (val && !val.valid) {
+          if (window.showToast) window.showToast(val.error);
           return;
         }
+
+        // Automatic heuristic classification
+        const classification = window.AIService?.classifyImageFile(file) || {
+          category: 'unknown',
+          confidence: 0.5,
+        };
+
+        const previewUrl = window.AIService?.createPreviewUrl(file) || URL.createObjectURL(file);
+
+        uploadedScreenshots.push({
+          id: 'ss_' + Math.random().toString(36).substr(2, 9),
+          file,
+          previewUrl,
+          name: file.name,
+          size: file.size,
+          category: classification.category,
+          confidence: classification.confidence,
+          status: 'ready',
+        });
+        addedCount++;
+      });
+
+      if (addedCount > 0 && window.showToast) {
+        window.showToast(`Added ${addedCount} screenshot${addedCount > 1 ? 's' : ''}`);
       }
 
-      if (window.LocalDatabaseService && activeTournamentId) {
-        // Ensure match exists or create one
-        let matchId = activeMatchId;
-        if (!matchId) {
-          const newMatch = window.LocalDatabaseService.createMatch(
-            activeTournamentId,
-            activeMatchNumber,
-            `Match ${activeMatchNumber}`,
-            activeMultiplier
-          );
-          matchId = newMatch.id;
-        }
+      this.renderUnifiedUploads();
+    },
 
-        // Prepare entries for LocalDatabaseService
-        const activeTeams = currentRoster.filter((t) => !t.isRemoved);
-        const entries = activeTeams.map((t) => ({
-          teamId: t.teamId,
-          placement: Number(t.placement) || 0,
-          kills: Number(t.totalKills) || 0,
-        }));
-
-        const t = window.LocalDatabaseService.getTournamentById(activeTournamentId, currentOwnerId);
-        const scoringCfg = t ? (t.scoring_config || t.scoring_system) : null;
-
-        // Save results strictly locally
-        window.LocalDatabaseService.saveMatchResults(
-          activeTournamentId,
-          matchId,
-          entries,
-          scoringCfg,
-          activeMultiplier
-        );
-
-        if (window.showToast) window.showToast('Match results saved successfully!');
-
-        // Close scanner and open tournament tables / leaderboard
-        this.close();
-        if (window.openTournamentTables) {
-          window.openTournamentTables(activeTournamentId);
-        }
+    removeScreenshot(imgId) {
+      const idx = uploadedScreenshots.findIndex((s) => s.id === imgId);
+      if (idx !== -1) {
+        const item = uploadedScreenshots[idx];
+        if (item.previewUrl) window.AIService?.revokePreviewUrl(item.previewUrl);
+        uploadedScreenshots.splice(idx, 1);
+        this.renderUnifiedUploads();
       }
     },
 
-    // ==================================================================
-    // RENDERING
-    // ==================================================================
-    render() {
-      this.updateScreenshotCardsUI();
-      this.recalculateAll();
-      this.renderTeamsList();
+    replaceScreenshot(imgId, newFile) {
+      const idx = uploadedScreenshots.findIndex((s) => s.id === imgId);
+      if (idx !== -1 && newFile) {
+        const old = uploadedScreenshots[idx];
+        if (old.previewUrl) window.AIService?.revokePreviewUrl(old.previewUrl);
+
+        const classification = window.AIService?.classifyImageFile(newFile) || {
+          category: 'unknown',
+          confidence: 0.5,
+        };
+        const previewUrl = window.AIService?.createPreviewUrl(newFile) || URL.createObjectURL(newFile);
+
+        uploadedScreenshots[idx] = {
+          id: old.id,
+          file: newFile,
+          previewUrl,
+          name: newFile.name,
+          size: newFile.size,
+          category: classification.category,
+          confidence: classification.confidence,
+          status: 'ready',
+        };
+
+        this.renderUnifiedUploads();
+      }
     },
 
-    renderTeamsList() {
-      const container = document.getElementById('scanner-teams-list');
+    clearAllScreenshots() {
+      uploadedScreenshots.forEach((s) => {
+        if (s.previewUrl) window.AIService?.revokePreviewUrl(s.previewUrl);
+      });
+      uploadedScreenshots = [];
+      this.renderUnifiedUploads();
+      if (window.showToast) window.showToast('Cleared all screenshots');
+    },
+
+    renderUnifiedUploads() {
+      const container = document.getElementById('scanner-unified-thumbnails');
+      const summaryBar = document.getElementById('scanner-upload-summary-bar');
+      const countBadge = document.getElementById('scanner-unified-count-badge');
+      const breakdownEl = document.getElementById('scanner-unified-breakdown');
+      const clearBtn = document.getElementById('scanner-btn-clear-all');
+
       if (!container) return;
       container.innerHTML = '';
 
-      const duplicates = new Set(this.getDuplicatePlacements());
+      if (uploadedScreenshots.length === 0) {
+        if (summaryBar) summaryBar.style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'none';
+        return;
+      }
 
-      currentRoster.forEach((team, slotIndex) => {
-        const card = this.createTeamCardElement(team, slotIndex, duplicates);
+      if (summaryBar) summaryBar.style.display = 'flex';
+      if (clearBtn) clearBtn.style.display = 'inline-block';
+
+      // Counts by category
+      const slotCount = uploadedScreenshots.filter((s) => s.category === 'slot_list').length;
+      const endCount = uploadedScreenshots.filter((s) => s.category === 'end_result').length;
+      const unkCount = uploadedScreenshots.filter((s) => s.category === 'unknown').length;
+
+      if (countBadge) {
+        countBadge.textContent = `${uploadedScreenshots.length} Screenshot${uploadedScreenshots.length > 1 ? 's' : ''}`;
+      }
+      if (breakdownEl) {
+        const parts = [];
+        if (slotCount > 0) parts.push(`${slotCount} Slot List`);
+        if (endCount > 0) parts.push(`${endCount} End Result`);
+        if (unkCount > 0) parts.push(`${unkCount} Unknown`);
+        breakdownEl.textContent = parts.join(' • ');
+      }
+
+      uploadedScreenshots.forEach((img) => {
+        const card = document.createElement('div');
+        card.className = 'scanner-thumb-card';
+        card.innerHTML = `
+          <div class="scanner-thumb-img-wrap">
+            <img src="${img.previewUrl}" alt="${escapeHtml(img.name)}" class="scanner-thumb-img" />
+            <button type="button" class="scanner-thumb-remove-btn" title="Remove" data-img-id="${img.id}">×</button>
+            <span class="scanner-thumb-cat-badge scanner-cat-${img.category}">
+              ${img.category === 'slot_list' ? 'Slot List' : (img.category === 'end_result' ? 'End Result' : 'Uncertain')}
+            </span>
+          </div>
+          <div class="scanner-thumb-meta">
+            <div class="scanner-thumb-filename" title="${escapeHtml(img.name)}">${escapeHtml(img.name)}</div>
+            <div class="scanner-thumb-size">${formatFileSize(img.size)}</div>
+            <div class="scanner-thumb-cat-select-wrap">
+              <label class="scanner-thumb-cat-label">Type:</label>
+              <select class="scanner-thumb-cat-select" data-img-id="${img.id}">
+                <option value="slot_list" ${img.category === 'slot_list' ? 'selected' : ''}>Slot List</option>
+                <option value="end_result" ${img.category === 'end_result' ? 'selected' : ''}>End Screenshot</option>
+                <option value="unknown" ${img.category === 'unknown' ? 'selected' : ''}>Unknown</option>
+              </select>
+            </div>
+          </div>
+        `;
+
+        // Category dropdown handler
+        card.querySelector('.scanner-thumb-cat-select')?.addEventListener('change', (e) => {
+          img.category = e.target.value;
+          this.renderUnifiedUploads();
+        });
+
+        // Remove button handler
+        card.querySelector('.scanner-thumb-remove-btn')?.addEventListener('click', () => {
+          this.removeScreenshot(img.id);
+        });
+
         container.appendChild(card);
       });
     },
 
-    renderTeamCard(slotIndex) {
-      const container = document.getElementById('scanner-teams-list');
-      if (!container) return;
-      const oldCard = container.querySelector(`[data-slot-index="${slotIndex}"]`);
-      if (!oldCard) return;
+    // ==================================================================
+    // ANALYZE ALL SCREENSHOTS PIPELINE
+    // ==================================================================
+    async processAllScreenshots() {
+      if (uploadedScreenshots.length === 0) {
+        if (window.showToast) window.showToast('Please select at least 1 screenshot to analyze.');
+        return;
+      }
 
-      const duplicates = new Set(this.getDuplicatePlacements());
-      const newCard = this.createTeamCardElement(currentRoster[slotIndex], slotIndex, duplicates);
-      container.replaceChild(newCard, oldCard);
+      // Filter by category
+      const slotListFiles = uploadedScreenshots.filter((s) => s.category === 'slot_list').map((s) => s.file);
+      const endResultFiles = uploadedScreenshots.filter((s) => s.category === 'end_result').map((s) => s.file);
+      const unknownFiles = uploadedScreenshots.filter((s) => s.category === 'unknown');
+
+      // If user hasn't categorized unknown images
+      if (slotListFiles.length === 0 && endResultFiles.length === 0 && unknownFiles.length > 0) {
+        if (window.showToast) {
+          window.showToast('Please select category (Slot List or End Screenshot) on the uploaded images first.');
+        }
+        return;
+      }
+
+      pushHistory();
+
+      // Show progress
+      const progressCard = document.getElementById('scanner-progress-card');
+      const progressPct = document.getElementById('scanner-progress-pct');
+      const progressFill = document.getElementById('scanner-progress-fill');
+      const progressMsg = document.getElementById('scanner-progress-msg');
+
+      if (progressCard) progressCard.classList.add('active');
+
+      const updateProgress = (pct, msg) => {
+        if (progressPct) progressPct.textContent = `${pct}%`;
+        if (progressFill) progressFill.style.width = `${pct}%`;
+        if (progressMsg) progressMsg.textContent = msg;
+      };
+
+      try {
+        updateProgress(15, 'Validating and categorizing screenshots...');
+
+        // Run multi-screenshot extraction pipeline
+        const outcome = await window.AIService.extract12SlotsAndResults(
+          { slotListFiles, endResultFiles, existingSlots: slots },
+          updateProgress
+        );
+
+        if (outcome && outcome.success) {
+          slots = outcome.slots;
+          unassignedPlayers = outcome.unassignedPlayers || [];
+          results = outcome.results;
+
+          // Render warnings
+          this.renderWarnings(outcome.warnings || []);
+
+          // Recalculate
+          this.recalculateAll();
+
+          // Render updated sections
+          this.render();
+
+          updateProgress(100, 'All screenshots analyzed successfully!');
+          setTimeout(() => {
+            if (progressCard) progressCard.classList.remove('active');
+          }, 800);
+
+          if (window.showToast) {
+            window.showToast(`Analysis complete: 12 slots updated with ${results.length} results.`);
+          }
+        }
+      } catch (err) {
+        console.error('AIScanner: Analysis error:', err);
+        if (progressCard) progressCard.classList.remove('active');
+        if (window.showToast) window.showToast('Analysis encountered an issue: ' + err.message);
+      }
     },
 
-    createTeamCardElement(team, slotIndex, duplicatesSet) {
-      const pts = this.getScoringBreakdown(team);
-      const isExpanded = expandedCards.has(slotIndex);
-      const hasDuplicatePlacement = duplicatesSet.has(Number(team.placement));
+    // ==================================================================
+    // 12-SLOT ROSTER EDITORS & ACTIONS
+    // ==================================================================
+    updateTeamName(slotIdx, newName) {
+      if (slots[slotIdx]) {
+        pushHistory();
+        slots[slotIdx].teamName = newName.trim() || `Team ${slots[slotIdx].slot}`;
+        if (results[slotIdx]) results[slotIdx].teamName = slots[slotIdx].teamName;
+        this.renderStandingsPreview();
+      }
+    },
 
-      const card = document.createElement('div');
-      card.className = `scanner-team-card ${isExpanded ? 'expanded' : ''} ${team.isRemoved ? 'is-removed' : ''}`;
-      card.dataset.slotIndex = slotIndex;
+    updatePlayerName(slotIdx, playerIdx, newName) {
+      if (slots[slotIdx] && slots[slotIdx].players[playerIdx]) {
+        pushHistory();
+        slots[slotIdx].players[playerIdx].name = newName.trim();
+        this.render12ResultsList();
+        this.renderStandingsPreview();
+      }
+    },
 
-      // Placement badge class
-      let placeClass = '';
-      if (team.placement === 1) placeClass = 'place-1';
-      else if (team.placement === 2) placeClass = 'place-2';
-      else if (team.placement === 3) placeClass = 'place-3';
+    addPlayer(slotIdx, playerName = '') {
+      if (!slots[slotIdx]) return;
+      pushHistory();
+      const pCount = slots[slotIdx].players.length + 1;
+      slots[slotIdx].players.push({
+        id: 'p_' + Math.random().toString(36).substr(2, 6),
+        name: playerName.trim() || `Player ${slots[slotIdx].slot}${String.fromCharCode(64 + pCount)}`,
+        kills: 0,
+      });
+      this.recalculateTeam(slotIdx);
+      this.render12SlotsList();
+      this.render12ResultsList();
+    },
 
-      const playerCountStr = `${(team.players || []).length} player${(team.players || []).length === 1 ? '' : 's'}`;
+    removePlayer(slotIdx, playerIdx) {
+      if (!slots[slotIdx] || !slots[slotIdx].players[playerIdx]) return;
+      pushHistory();
+      slots[slotIdx].players.splice(playerIdx, 1);
+      this.recalculateTeam(slotIdx);
+      this.render12SlotsList();
+      this.render12ResultsList();
+    },
 
-      card.innerHTML = `
-        <div class="scanner-team-card-main">
-          <div class="scanner-team-left">
-            <span class="scanner-slot-num-badge">#${team.slot}</span>
-            <div class="scanner-team-name-col">
-              <span class="scanner-team-name-text">${escapeHtml(team.teamName)}</span>
-              <span class="scanner-team-players-sub">${playerCountStr} • ${pts.totalPoints} pts</span>
-            </div>
-          </div>
-          <div class="scanner-team-right">
-            <span class="scanner-placement-pill ${placeClass} ${hasDuplicatePlacement ? 'has-warning' : ''}">
-              ${team.placement ? `${team.placement}${this.getOrdinal(team.placement)}` : 'Unranked'}
-            </span>
-            <span class="scanner-kills-pill ${team.teamKillsOverride !== null ? 'is-manual-override' : ''}">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-              ${team.totalKills} Kills ${team.teamKillsOverride !== null ? '⚡' : ''}
-            </span>
-            <div class="scanner-edit-toggle-icon" title="Enter player kills">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-            </div>
-          </div>
-        </div>
+    movePlayer(fromSlotIdx, playerIdx, toSlotIdx) {
+      if (!slots[fromSlotIdx] || !slots[toSlotIdx] || fromSlotIdx === toSlotIdx) return;
+      const player = slots[fromSlotIdx].players[playerIdx];
+      if (!player) return;
 
-        <div class="scanner-inline-editor">
-          <!-- Top Row: Team Name & Placement -->
-          <div class="scanner-inline-row">
-            <div class="scanner-field-group" style="flex: 2;">
-              <label class="scanner-field-label">Team Name</label>
-              <input type="text" class="scanner-input input-team-name" value="${escapeHtml(team.teamName)}" />
-            </div>
-            <div class="scanner-field-group" style="flex: 1;">
-              <label class="scanner-field-label">Placement</label>
-              <input type="number" class="scanner-input input-placement ${hasDuplicatePlacement ? 'has-warning' : ''}" min="1" max="48" value="${team.placement || ''}" placeholder="1" />
-            </div>
-          </div>
+      pushHistory();
+      slots[fromSlotIdx].players.splice(playerIdx, 1);
+      slots[toSlotIdx].players.push(player);
 
-          <!-- Players Header -->
-          <div class="scanner-players-header">
-            <span class="scanner-players-heading">Individual Players & Kills (${(team.players || []).length})</span>
-            <button type="button" class="scanner-btn-add-player">+ Add Player</button>
-          </div>
+      this.recalculateTeam(fromSlotIdx);
+      this.recalculateTeam(toSlotIdx);
+      this.render();
+      if (window.showToast) {
+        window.showToast(`Moved "${player.name}" to Slot ${slots[toSlotIdx].slot}`);
+      }
+    },
 
-          <!-- Player Rows -->
-          <div class="scanner-players-container">
-            ${(team.players || []).map((p, pIdx) => `
-              <div class="scanner-player-row" data-player-idx="${pIdx}">
-                <input type="text" class="scanner-player-name-input" value="${escapeHtml(p.name)}" placeholder="Player name" />
-                <input type="number" class="scanner-player-kills-input" min="0" value="${p.kills || 0}" title="Kills" />
-                <button type="button" class="scanner-player-del-btn" title="Remove player">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
-            `).join('')}
-          </div>
+    clearSlot(slotIdx) {
+      if (!slots[slotIdx]) return;
+      pushHistory();
+      slots[slotIdx].players = [];
+      slots[slotIdx].isCleared = true;
+      if (results[slotIdx]) {
+        results[slotIdx].totalKills = 0;
+        results[slotIdx].teamKillsOverride = null;
+      }
+      this.render();
+      if (window.showToast) window.showToast(`Cleared Slot ${slots[slotIdx].slot}`);
+    },
 
-          <!-- Team Override Banner if active -->
-          ${team.teamKillsOverride !== null ? `
-            <div class="scanner-override-banner">
-              <span>⚡ Manual override active: Team total set to <strong>${team.teamKillsOverride}</strong></span>
-              <button type="button" class="scanner-btn-reset-override">Reset to Sum (${team.players.reduce((sum, p) => sum + (Number(p.kills) || 0), 0)})</button>
-            </div>
-          ` : ''}
+    toggleSlotActive(slotIdx) {
+      if (!slots[slotIdx]) return;
+      pushHistory();
+      slots[slotIdx].isActive = !slots[slotIdx].isActive;
+      if (results[slotIdx]) {
+        results[slotIdx].isExcluded = !slots[slotIdx].isActive;
+      }
+      this.recalculateAll();
+      this.render();
+    },
 
-          <!-- Bottom Card Controls -->
-          <div class="scanner-card-actions-row">
-            <button type="button" class="scanner-btn-remove-team">
-              ${team.isRemoved ? 'Restore to Calculation' : 'Remove from Match'}
-            </button>
-            <div style="font-size: 11px; color: #a855f7;">
-              Points: <strong>${pts.placementPoints}</strong> plc + <strong>${pts.killPoints}</strong> k = <strong>${pts.totalPoints}</strong> total
-            </div>
-          </div>
-        </div>
-      `;
+    assignUnassignedPlayer(playerId, targetSlotIdx) {
+      const idx = unassignedPlayers.findIndex((p) => p.id === playerId);
+      if (idx === -1 || !slots[targetSlotIdx]) return;
 
-      // Header click toggles expand/collapse
-      card.querySelector('.scanner-team-card-main')?.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
-        if (expandedCards.has(slotIndex)) {
-          expandedCards.delete(slotIndex);
-        } else {
-          expandedCards.add(slotIndex);
+      pushHistory();
+      const p = unassignedPlayers.splice(idx, 1)[0];
+      slots[targetSlotIdx].players.push({
+        id: p.id,
+        name: p.name,
+        kills: Number(p.kills) || 0,
+      });
+
+      this.recalculateTeam(targetSlotIdx);
+      this.render();
+      if (window.showToast) {
+        window.showToast(`Assigned "${p.name}" to Slot ${slots[targetSlotIdx].slot}`);
+      }
+    },
+
+    // ==================================================================
+    // MATCH END RESULTS EDITORS & ACTIONS
+    // ==================================================================
+    updatePlayerKill(slotIdx, playerIdx, kills) {
+      if (!slots[slotIdx] || !slots[slotIdx].players[playerIdx]) return;
+      pushHistory();
+      slots[slotIdx].players[playerIdx].kills = Math.max(0, parseInt(kills, 10) || 0);
+
+      // Reset team override if user directly edited player kill
+      if (results[slotIdx]) {
+        results[slotIdx].teamKillsOverride = null;
+      }
+
+      this.recalculateTeam(slotIdx);
+      this.updateResultCardKillsDisplay(slotIdx);
+      this.renderStandingsPreview();
+    },
+
+    overrideTeamKills(slotIdx, totalKills) {
+      if (!results[slotIdx]) return;
+      pushHistory();
+      results[slotIdx].teamKillsOverride = Math.max(0, parseInt(totalKills, 10) || 0);
+      results[slotIdx].totalKills = results[slotIdx].teamKillsOverride;
+
+      this.recalculateTeam(slotIdx);
+      this.updateResultCardKillsDisplay(slotIdx);
+      this.renderStandingsPreview();
+    },
+
+    resetTeamKillsOverride(slotIdx) {
+      if (!results[slotIdx]) return;
+      pushHistory();
+      results[slotIdx].teamKillsOverride = null;
+      this.recalculateTeam(slotIdx);
+      this.updateResultCardKillsDisplay(slotIdx);
+      this.renderStandingsPreview();
+    },
+
+    resetAllOverrides() {
+      pushHistory();
+      results.forEach((r) => {
+        r.teamKillsOverride = null;
+      });
+      this.recalculateAll();
+      this.render12ResultsList();
+      if (window.showToast) window.showToast('Reset all manual overrides to player kill sum');
+    },
+
+    updatePlacement(slotIdx, placement) {
+      if (!results[slotIdx]) return;
+      pushHistory();
+      const p = placement ? Math.max(1, parseInt(placement, 10) || 1) : null;
+      results[slotIdx].placement = p;
+
+      this.checkPlacementDuplicates();
+      this.recalculateAll();
+      this.renderStandingsPreview();
+    },
+
+    toggleExcludeFromMatch(slotIdx) {
+      if (!results[slotIdx]) return;
+      pushHistory();
+      results[slotIdx].isExcluded = !results[slotIdx].isExcluded;
+      this.recalculateAll();
+      this.render12ResultsList();
+    },
+
+    checkPlacementDuplicates() {
+      const placementCount = new Map();
+      results.forEach((r) => {
+        if (r.placement && !r.isExcluded) {
+          placementCount.set(r.placement, (placementCount.get(r.placement) || 0) + 1);
         }
-        card.classList.toggle('expanded');
       });
 
-      // Team name change
-      const nameInput = card.querySelector('.input-team-name');
-      nameInput?.addEventListener('change', (e) => {
-        this.updateTeamName(slotIndex, e.target.value);
+      results.forEach((r) => {
+        r.warnings = r.warnings.filter((w) => !w.startsWith('Duplicate placement'));
+        if (r.placement && placementCount.get(r.placement) > 1) {
+          r.warnings.push(`Duplicate placement #${r.placement}`);
+        }
+      });
+    },
+
+    // ==================================================================
+    // DETERMINISTIC SCORING ENGINE INTEGRATION
+    // ==================================================================
+    recalculateTeam(slotIdx) {
+      const slot = slots[slotIdx];
+      const res = results[slotIdx];
+      if (!slot || !res) return;
+
+      if (res.teamKillsOverride !== null) {
+        res.totalKills = Number(res.teamKillsOverride) || 0;
+      } else {
+        res.totalKills = slot.players.reduce((sum, p) => sum + (Number(p.kills) || 0), 0);
+      }
+    },
+
+    recalculateAll() {
+      for (let i = 0; i < slots.length; i++) {
+        this.recalculateTeam(i);
+      }
+      this.checkPlacementDuplicates();
+      this.renderStandingsPreview();
+    },
+
+    getScoringBreakdown(resItem) {
+      const Engine = window.ScoringEngine;
+      const place = Number(resItem.placement) || 0;
+      const kills = Number(resItem.totalKills) || 0;
+
+      if (Engine && Engine.calculateTeamPoints) {
+        return Engine.calculateTeamPoints(place, kills, null, activeMultiplier);
+      }
+
+      // Default fallback scoring
+      const placePts = place === 1 ? 12 : place === 2 ? 9 : place === 3 ? 8 : Math.max(0, 11 - place);
+      return {
+        placement: place,
+        kills,
+        multiplier: activeMultiplier,
+        placementPoints: Math.round(placePts * activeMultiplier),
+        killPoints: Math.round(kills * activeMultiplier),
+        totalPoints: Math.round((placePts + kills) * activeMultiplier),
+      };
+    },
+
+    // ==================================================================
+    // REVIEW NEXT ISSUE ACTION
+    // ==================================================================
+    reviewNextUncertainItem() {
+      // 1. Check unassigned players
+      if (unassignedPlayers.length > 0) {
+        const unEl = document.getElementById('scanner-unassigned-section');
+        if (unEl) {
+          unEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          unEl.classList.add('pulse-highlight');
+          setTimeout(() => unEl.classList.remove('pulse-highlight'), 1800);
+          if (window.showToast) window.showToast('Please assign unassigned players.');
+          return;
+        }
+      }
+
+      // 2. Check for duplicate placements or warning in results
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        if (r.warnings && r.warnings.length > 0) {
+          const cardEl = document.getElementById(`scanner-res-card-${i}`);
+          if (cardEl) {
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            cardEl.classList.add('pulse-highlight');
+            setTimeout(() => cardEl.classList.remove('pulse-highlight'), 1800);
+            if (window.showToast) window.showToast(`Issue in Slot ${r.slot}: ${r.warnings[0]}`);
+            return;
+          }
+        }
+      }
+
+      // 3. Check for empty or review-needed slots in roster
+      for (let i = 0; i < slots.length; i++) {
+        const s = slots[i];
+        if (s.status === 'review' || s.players.length === 0) {
+          const cardEl = document.getElementById(`scanner-slot-card-${i}`);
+          if (cardEl) {
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            cardEl.classList.add('pulse-highlight');
+            setTimeout(() => cardEl.classList.remove('pulse-highlight'), 1800);
+            if (window.showToast) window.showToast(`Slot ${s.slot} needs review.`);
+            return;
+          }
+        }
+      }
+
+      if (window.showToast) window.showToast('All 12 slots are verified with no warnings!');
+    },
+
+    // ==================================================================
+    // SAVED SLOT LISTS CRUD
+    // ==================================================================
+    refreshSlotListsDropdown() {
+      const select = document.getElementById('scanner-slotlist-select');
+      if (!select || !window.LocalDatabaseService || !currentOwnerId) return;
+
+      const saved = window.LocalDatabaseService.getSlotLists(currentOwnerId);
+      select.innerHTML = '<option value="">-- Use Saved Slot List --</option>';
+
+      saved.forEach((sl) => {
+        const opt = document.createElement('option');
+        opt.value = sl.id;
+        opt.textContent = `${sl.name} (${(sl.slots || []).length} slots)`;
+        select.appendChild(opt);
+      });
+    },
+
+    loadSlotList(slotListId) {
+      if (!window.LocalDatabaseService || !currentOwnerId || !slotListId) return;
+      const sl = window.LocalDatabaseService.getSlotListById(slotListId, currentOwnerId);
+      if (!sl || !Array.isArray(sl.slots)) return;
+
+      pushHistory();
+
+      // Overwrite current 12 slots
+      sl.slots.forEach((loadedSlot, idx) => {
+        if (idx < 12 && slots[idx]) {
+          slots[idx].teamName = loadedSlot.teamName || slots[idx].teamName;
+          slots[idx].players = Array.isArray(loadedSlot.players)
+            ? loadedSlot.players.map((p) => ({
+                id: 'p_' + Math.random().toString(36).substr(2, 6),
+                name: typeof p === 'string' ? p : p.name,
+                kills: 0,
+              }))
+            : [];
+          slots[idx].source = `Saved: ${sl.name}`;
+          if (results[idx]) results[idx].teamName = slots[idx].teamName;
+        }
       });
 
-      // Placement change
-      const placeInput = card.querySelector('.input-placement');
-      placeInput?.addEventListener('change', (e) => {
-        this.updatePlacement(slotIndex, e.target.value);
-      });
+      this.recalculateAll();
+      this.render();
+      if (window.showToast) {
+        window.showToast(`Loaded roster "${sl.name}" into current match.`);
+      }
+    },
 
-      // Add player
-      card.querySelector('.scanner-btn-add-player')?.addEventListener('click', () => {
-        this.addPlayer(slotIndex);
-      });
+    promptSaveSlotList() {
+      const defaultName = `Roster Match ${activeMatchNumber}`;
+      const name = window.prompt('Enter a name for this 12-slot roster:', defaultName);
+      if (!name) return;
 
-      // Player row changes
-      card.querySelectorAll('.scanner-player-row').forEach((pRow) => {
-        const pIdx = parseInt(pRow.dataset.playerIdx, 10);
-        const pNameInp = pRow.querySelector('.scanner-player-name-input');
-        const pKillsInp = pRow.querySelector('.scanner-player-kills-input');
-        const pDelBtn = pRow.querySelector('.scanner-player-del-btn');
+      if (window.LocalDatabaseService && currentOwnerId) {
+        const saved = window.LocalDatabaseService.saveSlotList(currentOwnerId, {
+          name: name.trim(),
+          tournament_id: activeTournamentId,
+          slots: slots.map((s) => ({
+            slot: s.slot,
+            teamName: s.teamName,
+            players: s.players.map((p) => ({ name: p.name })),
+          })),
+        });
 
-        pNameInp?.addEventListener('change', (e) => {
-          if (team.players[pIdx]) {
-            pushHistory();
-            team.players[pIdx].name = e.target.value;
+        if (saved) {
+          this.refreshSlotListsDropdown();
+          if (window.showToast) window.showToast(`Saved roster "${name}" successfully!`);
+        }
+      }
+    },
+
+    openSlotListModal() {
+      const modal = document.getElementById('scanner-slotlist-modal');
+      const listEl = document.getElementById('scanner-slotlists-modal-list');
+      if (!modal || !listEl || !window.LocalDatabaseService || !currentOwnerId) return;
+
+      const saved = window.LocalDatabaseService.getSlotLists(currentOwnerId);
+      listEl.innerHTML = '';
+
+      if (saved.length === 0) {
+        listEl.innerHTML = '<div style="color: #94a3b8; font-size: 13px; text-align: center; padding: 20px;">No saved rosters found.</div>';
+      } else {
+        saved.forEach((sl) => {
+          const item = document.createElement('div');
+          item.className = 'scanner-slotlist-modal-item';
+          item.innerHTML = `
+            <div style="flex: 1;">
+              <div style="font-weight: 700; color: #fff; font-size: 14px;">${escapeHtml(sl.name)}</div>
+              <div style="font-size: 11px; color: #a855f7;">${(sl.slots || []).length} Slots • Saved ${new Date(sl.updated_at || sl.created_at).toLocaleDateString()}</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="scanner-btn-sm scanner-btn-use" data-sl-id="${sl.id}">Use</button>
+              <button type="button" class="scanner-btn-sm scanner-btn-del" data-sl-id="${sl.id}">Delete</button>
+            </div>
+          `;
+
+          item.querySelector('.scanner-btn-use')?.addEventListener('click', () => {
+            this.loadSlotList(sl.id);
+            modal.classList.remove('open');
+          });
+
+          item.querySelector('.scanner-btn-del')?.addEventListener('click', () => {
+            if (confirm(`Delete saved roster "${sl.name}"?`)) {
+              window.LocalDatabaseService.deleteSlotList(sl.id, currentOwnerId);
+              this.refreshSlotListsDropdown();
+              this.openSlotListModal();
+            }
+          });
+
+          listEl.appendChild(item);
+        });
+      }
+
+      modal.classList.add('open');
+    },
+
+    // ==================================================================
+    // CONFIRM & SAVE MATCH RESULTS
+    // ==================================================================
+    confirmAndSaveResults() {
+      if (!window.LocalDatabaseService || !activeTournamentId) {
+        if (window.showToast) window.showToast('Please select or create a tournament first.');
+        return;
+      }
+
+      // Check duplicates
+      const dups = results.filter((r) => r.warnings.some((w) => w.startsWith('Duplicate')));
+      if (dups.length > 0) {
+        if (!confirm('There are duplicate placements detected. Do you want to save anyway?')) {
+          this.reviewNextUncertainItem();
+          return;
+        }
+      }
+
+      // Auto-save roster if Remember Lobby is enabled
+      if (rememberLobbyEnabled && currentOwnerId) {
+        try {
+          window.LocalDatabaseService.saveSlotList(currentOwnerId, {
+            name: `Auto-saved Match ${activeMatchNumber}`,
+            tournament_id: activeTournamentId,
+            slots: slots.map((s) => ({
+              slot: s.slot,
+              teamName: s.teamName,
+              players: s.players.map((p) => ({ name: p.name })),
+            })),
+          });
+        } catch (e) {
+          console.warn('Auto-save lobby error:', e);
+        }
+      }
+
+      // Ensure match exists
+      let matchId = activeMatchId;
+      if (!matchId) {
+        const createdMatch = window.LocalDatabaseService.createMatch(
+          activeTournamentId,
+          activeMatchNumber,
+          `Match ${activeMatchNumber}`,
+          activeMultiplier
+        );
+        matchId = createdMatch ? createdMatch.id : null;
+      }
+
+      if (!matchId) {
+        if (window.showToast) window.showToast('Could not create match record.');
+        return;
+      }
+
+      // Map results to tournament teams
+      let tournTeams = window.LocalDatabaseService.getTeams(activeTournamentId);
+      const teamEntries = [];
+
+      for (let i = 0; i < slots.length; i++) {
+        const slot = slots[i];
+        const res = results[i];
+        if (res.isExcluded) continue;
+
+        // Find or create tournament team record
+        let teamId = slot.teamId;
+        if (!teamId) {
+          const matchByName = tournTeams.find(
+            (t) => t.name.toLowerCase().trim() === slot.teamName.toLowerCase().trim()
+          );
+          if (matchByName) {
+            teamId = matchByName.id;
+          } else {
+            const newT = window.LocalDatabaseService.createTeam(activeTournamentId, slot.teamName, i + 1);
+            teamId = newT ? newT.id : null;
+            if (newT) tournTeams.push(newT);
+          }
+        }
+
+        if (teamId) {
+          teamEntries.push({
+            teamId,
+            placement: Number(res.placement) || i + 1,
+            kills: Number(res.totalKills) || 0,
+          });
+        }
+      }
+
+      // Save match results in LocalDatabaseService
+      const savedResults = window.LocalDatabaseService.saveMatchResults(
+        activeTournamentId,
+        matchId,
+        teamEntries,
+        null,
+        activeMultiplier
+      );
+
+      if (window.showToast) {
+        window.showToast(`Saved Match ${activeMatchNumber} with ${teamEntries.length} team results!`);
+      }
+
+      // Return to tournament dashboard or matches
+      if (window.openTournamentTables && activeTournamentId) {
+        window.openTournamentTables(activeTournamentId);
+      } else {
+        this.close();
+      }
+    },
+
+    // ==================================================================
+    // RENDER CONTROLLER
+    // ==================================================================
+    render() {
+      this.renderUnifiedUploads();
+      this.renderSlotJumpBar();
+      this.renderUnassignedPlayers();
+      this.render12SlotsList();
+      this.render12ResultsList();
+      this.renderStandingsPreview();
+    },
+
+    renderWarnings(warningList) {
+      const container = document.getElementById('scanner-warnings-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (!warningList || warningList.length === 0) return;
+
+      const banner = document.createElement('div');
+      banner.className = 'scanner-warnings-banner';
+      banner.innerHTML = `
+        <div style="font-weight: 700; color: #fbbf24; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Review Items (${warningList.length})
+        </div>
+        <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #e2e8f0; line-height: 1.5;">
+          ${warningList.slice(0, 5).map((w) => `<li>${escapeHtml(w)}</li>`).join('')}
+          ${warningList.length > 5 ? `<li>...and ${warningList.length - 5} more items</li>` : ''}
+        </ul>
+      `;
+      container.appendChild(banner);
+    },
+
+    renderSlotJumpBar() {
+      const bar = document.getElementById('scanner-slot-jump-bar');
+      if (!bar) return;
+      bar.innerHTML = '';
+
+      for (let i = 0; i < 12; i++) {
+        const slot = slots[i];
+        const res = results[i];
+        const hasWarning = res && res.warnings && res.warnings.length > 0;
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = `scanner-jump-chip ${hasWarning ? 'has-warning' : ''}`;
+        chip.innerHTML = `
+          <span>${String(i + 1).padStart(2, '0')}</span>
+          ${hasWarning ? '<span class="jump-dot"></span>' : ''}
+        `;
+        chip.addEventListener('click', () => {
+          const cardEl = document.getElementById(`scanner-slot-card-${i}`);
+          if (cardEl) {
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            cardEl.classList.add('pulse-highlight');
+            setTimeout(() => cardEl.classList.remove('pulse-highlight'), 1500);
+          }
+        });
+        bar.appendChild(chip);
+      }
+    },
+
+    renderUnassignedPlayers() {
+      const section = document.getElementById('scanner-unassigned-section');
+      const listEl = document.getElementById('scanner-unassigned-list');
+      const countEl = document.getElementById('scanner-unassigned-count');
+
+      if (!section || !listEl) return;
+      listEl.innerHTML = '';
+
+      if (unassignedPlayers.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+
+      section.style.display = 'block';
+      if (countEl) countEl.textContent = `${unassignedPlayers.length} player${unassignedPlayers.length > 1 ? 's' : ''}`;
+
+      unassignedPlayers.forEach((p) => {
+        const chip = document.createElement('div');
+        chip.className = 'scanner-unassigned-item';
+        chip.innerHTML = `
+          <span class="scanner-unassigned-name">${escapeHtml(p.name)}</span>
+          <select class="scanner-assign-select" data-p-id="${p.id}">
+            <option value="">Assign to Slot...</option>
+            ${slots.map((s, idx) => `<option value="${idx}">Slot ${String(s.slot).padStart(2, '0')} (${escapeHtml(s.teamName)})</option>`).join('')}
+          </select>
+        `;
+
+        chip.querySelector('.scanner-assign-select')?.addEventListener('change', (e) => {
+          const targetSlotIdx = parseInt(e.target.value, 10);
+          if (!isNaN(targetSlotIdx)) {
+            this.assignUnassignedPlayer(p.id, targetSlotIdx);
           }
         });
 
-        pKillsInp?.addEventListener('input', (e) => {
-          this.updatePlayerKill(slotIndex, pIdx, e.target.value);
+        listEl.appendChild(chip);
+      });
+    },
+
+    render12SlotsList() {
+      const container = document.getElementById('scanner-12slots-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      slots.forEach((slot, slotIdx) => {
+        const isExpanded = expandedSlotCards.has(slotIdx) || slotIdx === 0; // first card expanded by default
+        const pCount = slot.players.length;
+
+        const card = document.createElement('div');
+        card.className = `scanner-12slot-card ${slot.isActive ? '' : 'is-inactive'} ${isExpanded ? 'is-expanded' : ''}`;
+        card.id = `scanner-slot-card-${slotIdx}`;
+
+        card.innerHTML = `
+          <div class="scanner-12slot-header" data-slot-idx="${slotIdx}">
+            <div class="scanner-12slot-header-left">
+              <span class="scanner-slot-badge">Slot ${String(slot.slot).padStart(2, '0')}</span>
+              <input type="text" class="scanner-team-name-input" value="${escapeHtml(slot.teamName)}" placeholder="Team Name" data-slot-idx="${slotIdx}" />
+            </div>
+            <div class="scanner-12slot-header-right">
+              <span class="scanner-slot-count-badge">${pCount}P</span>
+              <button type="button" class="scanner-collapse-toggle-btn" aria-label="Toggle details">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="scanner-12slot-body" style="display: ${isExpanded ? 'block' : 'none'};">
+            <div class="scanner-players-list" id="scanner-players-list-${slotIdx}">
+              ${slot.players.map((p, pIdx) => `
+                <div class="scanner-player-row">
+                  <span class="scanner-player-idx">${pIdx + 1}.</span>
+                  <input type="text" class="scanner-player-name-input" value="${escapeHtml(p.name)}" placeholder="Player Name" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}" />
+                  <select class="scanner-player-move-select" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}">
+                    <option value="">Move...</option>
+                    ${slots.map((s, targetIdx) => targetIdx !== slotIdx ? `<option value="${targetIdx}">Slot ${String(s.slot).padStart(2, '0')}</option>` : '').join('')}
+                  </select>
+                  <button type="button" class="scanner-player-del-btn" title="Remove" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}">×</button>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="scanner-slot-actions-bar">
+              <button type="button" class="scanner-btn-add-p" data-slot-idx="${slotIdx}">+ Add Player</button>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="scanner-btn-clear-slot" data-slot-idx="${slotIdx}">Clear Slot</button>
+                <button type="button" class="scanner-btn-toggle-active" data-slot-idx="${slotIdx}">
+                  ${slot.isActive ? 'Mark Inactive' : 'Restore Slot'}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Accordion toggle
+        card.querySelector('.scanner-collapse-toggle-btn')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (expandedSlotCards.has(slotIdx)) {
+            expandedSlotCards.delete(slotIdx);
+          } else {
+            expandedSlotCards.add(slotIdx);
+          }
+          this.render12SlotsList();
         });
 
-        pDelBtn?.addEventListener('click', () => {
-          this.removePlayer(slotIndex, pIdx);
+        // Team Name input change
+        card.querySelector('.scanner-team-name-input')?.addEventListener('change', (e) => {
+          this.updateTeamName(slotIdx, e.target.value);
         });
+
+        // Player Name input changes
+        card.querySelectorAll('.scanner-player-name-input').forEach((inp) => {
+          inp.addEventListener('change', (e) => {
+            const pIdx = parseInt(e.target.dataset.pIdx, 10);
+            this.updatePlayerName(slotIdx, pIdx, e.target.value);
+          });
+        });
+
+        // Move Player select
+        card.querySelectorAll('.scanner-player-move-select').forEach((sel) => {
+          sel.addEventListener('change', (e) => {
+            const pIdx = parseInt(e.target.dataset.pIdx, 10);
+            const targetSlotIdx = parseInt(e.target.value, 10);
+            if (!isNaN(targetSlotIdx)) {
+              this.movePlayer(slotIdx, pIdx, targetSlotIdx);
+            }
+          });
+        });
+
+        // Remove Player button
+        card.querySelectorAll('.scanner-player-del-btn').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const pIdx = parseInt(e.target.dataset.pIdx, 10);
+            this.removePlayer(slotIdx, pIdx);
+          });
+        });
+
+        // Add Player button
+        card.querySelector('.scanner-btn-add-p')?.addEventListener('click', () => {
+          this.addPlayer(slotIdx);
+        });
+
+        // Clear Slot button
+        card.querySelector('.scanner-btn-clear-slot')?.addEventListener('click', () => {
+          this.clearSlot(slotIdx);
+        });
+
+        // Toggle Active button
+        card.querySelector('.scanner-btn-toggle-active')?.addEventListener('click', () => {
+          this.toggleSlotActive(slotIdx);
+        });
+
+        container.appendChild(card);
+      });
+    },
+
+    render12ResultsList() {
+      const container = document.getElementById('scanner-12results-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      results.forEach((res, slotIdx) => {
+        const slot = slots[slotIdx];
+        if (!slot) return;
+
+        const isExpanded = expandedResultCards.has(slotIdx) || slotIdx === 0;
+        const pts = this.getScoringBreakdown(res);
+        const isOverride = res.teamKillsOverride !== null;
+
+        const card = document.createElement('div');
+        card.className = `scanner-12result-card ${res.isExcluded ? 'is-excluded' : ''} ${res.warnings.length > 0 ? 'has-warning' : ''}`;
+        card.id = `scanner-res-card-${slotIdx}`;
+
+        card.innerHTML = `
+          <div class="scanner-12result-header">
+            <div class="scanner-12result-header-left">
+              <span class="scanner-slot-badge">Slot ${String(slot.slot).padStart(2, '0')}</span>
+              <span class="scanner-result-teamname">${escapeHtml(slot.teamName)}</span>
+              ${res.warnings.map((w) => `<span class="scanner-warning-tag">${escapeHtml(w)}</span>`).join('')}
+            </div>
+            <div class="scanner-12result-header-right">
+              <div class="scanner-place-input-group">
+                <span class="scanner-place-hash">#</span>
+                <input type="number" class="scanner-place-input" min="1" max="12" value="${res.placement || ''}" placeholder="-" data-slot-idx="${slotIdx}" />
+              </div>
+              <div class="scanner-kills-total-pill ${isOverride ? 'is-override' : ''}">
+                <span class="pill-dot"></span>
+                <span id="scanner-kills-count-${slotIdx}">${res.totalKills}</span> Kills
+              </div>
+            </div>
+          </div>
+
+          <div class="scanner-12result-body">
+            <!-- Individual Matched Players Kills -->
+            <div class="scanner-result-players-wrap">
+              <div class="scanner-result-players-title">Player Eliminations:</div>
+              <div class="scanner-result-players-grid">
+                ${slot.players.map((p, pIdx) => `
+                  <div class="scanner-player-kill-item">
+                    <span class="scanner-pk-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
+                    <input type="number" min="0" max="99" class="scanner-pk-input" value="${Number(p.kills) || 0}" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}" />
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Team Override & Points Summary Row -->
+            <div class="scanner-result-override-row">
+              <div class="scanner-override-controls">
+                <label class="scanner-override-label">Manual Override Team Kills:</label>
+                <input type="number" min="0" max="99" class="scanner-override-input" value="${isOverride ? res.totalKills : ''}" placeholder="${res.totalKills}" data-slot-idx="${slotIdx}" />
+                ${isOverride ? `<button type="button" class="scanner-btn-reset-ov" data-slot-idx="${slotIdx}">Reset</button>` : ''}
+              </div>
+              <div class="scanner-result-pts-tag">
+                ${pts.totalPoints} Points
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Placement input change
+        card.querySelector('.scanner-place-input')?.addEventListener('change', (e) => {
+          this.updatePlacement(slotIdx, e.target.value);
+        });
+
+        // Player Kills input changes
+        card.querySelectorAll('.scanner-pk-input').forEach((inp) => {
+          inp.addEventListener('input', (e) => {
+            const pIdx = parseInt(e.target.dataset.pIdx, 10);
+            this.updatePlayerKill(slotIdx, pIdx, e.target.value);
+          });
+        });
+
+        // Team Override input change
+        card.querySelector('.scanner-override-input')?.addEventListener('change', (e) => {
+          if (e.target.value !== '') {
+            this.overrideTeamKills(slotIdx, e.target.value);
+          }
+        });
+
+        // Reset Override button
+        card.querySelector('.scanner-btn-reset-ov')?.addEventListener('click', () => {
+          this.resetTeamKillsOverride(slotIdx);
+        });
+
+        container.appendChild(card);
+      });
+    },
+
+    updateResultCardKillsDisplay(slotIdx) {
+      const res = results[slotIdx];
+      const countEl = document.getElementById(`scanner-kills-count-${slotIdx}`);
+      if (countEl && res) {
+        countEl.textContent = res.totalKills;
+      }
+    },
+
+    renderStandingsPreview() {
+      const tbody = document.getElementById('scanner-standings-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      // Compute scored entries
+      const scoredList = results
+        .filter((r) => !r.isExcluded)
+        .map((r, originalIdx) => {
+          const breakdown = this.getScoringBreakdown(r);
+          return {
+            slot: r.slot,
+            teamName: r.teamName,
+            placement: Number(r.placement) || 12,
+            kills: Number(r.totalKills) || 0,
+            placementPoints: breakdown.placementPoints,
+            killPoints: breakdown.killPoints,
+            multiplier: breakdown.multiplier,
+            totalPoints: breakdown.totalPoints,
+          };
+        });
+
+      // Sort deterministically by placement
+      scoredList.sort((a, b) => {
+        if (a.totalPoints !== b.totalPoints) return b.totalPoints - a.totalPoints;
+        if (a.placementPoints !== b.placementPoints) return b.placementPoints - a.placementPoints;
+        if (a.placement !== b.placement) return a.placement - b.placement;
+        return b.killPoints - a.killPoints;
       });
 
-      // Reset override
-      card.querySelector('.scanner-btn-reset-override')?.addEventListener('click', () => {
-        this.resetTeamKillsOverride(slotIndex);
+      scoredList.forEach((row, rankIdx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>#${rankIdx + 1}</strong></td>
+          <td>Slot ${String(row.slot).padStart(2, '0')}</td>
+          <td>${escapeHtml(row.teamName)}</td>
+          <td>${row.placementPoints}</td>
+          <td>${row.killPoints}</td>
+          <td>${row.multiplier}x</td>
+          <td><strong style="color: #c084fc;">${row.totalPoints}</strong></td>
+        `;
+        tbody.appendChild(tr);
       });
-
-      // Remove / Restore team
-      card.querySelector('.scanner-btn-remove-team')?.addEventListener('click', () => {
-        this.removeTeamFromCalc(slotIndex);
-      });
-
-      return card;
     },
 
-    getOrdinal(n) {
-      const s = ['th', 'st', 'nd', 'rd'];
-      const v = n % 100;
-      return s[(v - 20) % 10] || s[v] || s[0];
+    // Testing getters
+    getSlots() {
+      return slots;
     },
-
-    // Getters for testing
-    getRoster() {
-      return currentRoster;
+    getResults() {
+      return results;
     },
-
-    setRoster(r) {
-      currentRoster = r;
-      this.recalculateAll();
+    getUnassigned() {
+      return unassignedPlayers;
     },
-
+    getUploadedScreenshots() {
+      return uploadedScreenshots;
+    },
     getMode() {
       return currentMode;
     },
   };
 
-  // Export
+  // Export to global window
   window.AIScanner = AIScanner;
 })(typeof window !== 'undefined' ? window : global);

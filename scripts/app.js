@@ -29,6 +29,7 @@
     avatarUrl: null,
     isAuthenticated: false,
   };
+  window.currentUser = currentUser;
 
   let tournaments = [];
   let currentScreen = null;
@@ -512,14 +513,38 @@
       navigateTo('design');
     }
   });
+  function resolveOrCreateActiveTournament() {
+    if (activeTournament) return activeTournament;
+    if (window.LocalDatabaseService && currentUser?.id) {
+      const list = window.LocalDatabaseService.getTournaments(currentUser.id);
+      if (list && list.length > 0) {
+        activeTournament = list[0];
+        return activeTournament;
+      }
+      // Auto-create a default 12-slot tournament so organizer is never blocked
+      const created = window.LocalDatabaseService.createTournament(currentUser.id, {
+        name: 'Free Fire Cup',
+        game_mode: 'squad',
+        team_count: 12,
+        scoring_system: 'default',
+      });
+      activeTournament = created;
+      if (typeof loadTournaments === 'function') loadTournaments();
+      return activeTournament;
+    }
+    return null;
+  }
+
   btnActionSlots?.addEventListener('click', () => {
-    if (activeTournament && window.AIScanner) {
+    const tourn = resolveOrCreateActiveTournament();
+    if (window.AIScanner) {
       window.AIScanner.open({
-        tournamentId: activeTournament.id,
+        tournamentId: tourn ? tourn.id : null,
         ownerUserId: currentUser.id,
+        returnScreen: currentScreen || 'tournament-dashboard',
       });
     } else {
-      showToast('Select a tournament first');
+      showToast('AI Scanner module initializing...');
     }
   });
 
@@ -527,12 +552,14 @@
   document.getElementById('btn-open-scanner-from-setup')?.addEventListener('click', () => {
     const matchNum = parseInt(calcMatchNumber?.value, 10) || 1;
     closeSetupCalculate();
-    if (activeTournament && window.AIScanner) {
+    const tourn = resolveOrCreateActiveTournament();
+    if (window.AIScanner) {
       window.AIScanner.open({
-        tournamentId: activeTournament.id,
+        tournamentId: tourn ? tourn.id : null,
         matchNumber: matchNum,
-        multiplier: setupCalcMultiplier,
+        multiplier: setupCalcMultiplier || 1,
         ownerUserId: currentUser.id,
+        returnScreen: currentScreen || 'tournament-dashboard',
       });
     }
   });
@@ -540,13 +567,15 @@
   // Launch AI scanner from match entry modal
   document.getElementById('btn-open-scanner-from-me')?.addEventListener('click', () => {
     closeMatchEntryModal();
-    if (activeTournament && activeMatch && window.AIScanner) {
+    const tourn = resolveOrCreateActiveTournament();
+    if (window.AIScanner) {
       window.AIScanner.open({
-        tournamentId: activeTournament.id,
-        matchNumber: activeMatch.match_number,
-        matchId: activeMatch.id,
-        multiplier: activeMatch.multiplier || 1,
+        tournamentId: tourn ? tourn.id : null,
+        matchNumber: activeMatch ? activeMatch.match_number : 1,
+        matchId: activeMatch ? activeMatch.id : null,
+        multiplier: activeMatch ? (activeMatch.multiplier || 1) : 1,
         ownerUserId: currentUser.id,
+        returnScreen: currentScreen || 'tournament-dashboard',
       });
     }
   });
@@ -1319,6 +1348,20 @@
   document.getElementById('qa-import-team')?.addEventListener('click', () => {
     if (window.TeamSimulator && currentUser.id) {
       window.TeamSimulator.open(currentUser.id);
+    }
+  });
+
+  // AI Result Scanner Quick Action
+  document.getElementById('qa-ai-scanner')?.addEventListener('click', () => {
+    const tourn = resolveOrCreateActiveTournament();
+    if (window.AIScanner) {
+      window.AIScanner.open({
+        tournamentId: tourn ? tourn.id : null,
+        ownerUserId: currentUser.id,
+        returnScreen: 'home',
+      });
+    } else {
+      showToast('AI Scanner module initializing...');
     }
   });
 
@@ -2160,6 +2203,7 @@
       avatarUrl: avatar,
       isAuthenticated: true,
     };
+    window.currentUser = currentUser;
 
     console.log('LRD PointCalc: Authenticated User:', currentUser.email || currentUser.displayName, '| UID:', currentUser.id);
 
@@ -2180,6 +2224,7 @@
       avatarUrl: null,
       isAuthenticated: false,
     };
+    window.currentUser = currentUser;
 
     try {
       localStorage.removeItem('lrd_guest_user');

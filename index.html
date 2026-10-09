@@ -178,6 +178,14 @@
           </div>
 
           <div class="quick-actions-card">
+            <button type="button" class="quick-action" id="qa-ai-scanner">
+              <div class="quick-action__icon" style="color: #c084fc;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/>
+                </svg>
+              </div>
+              <span class="quick-action__label">AI Result<br/>Scanner</span>
+            </button>
             <button type="button" class="quick-action" id="qa-create-tournament">
               <div class="quick-action__icon">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -525,7 +533,7 @@
                 <polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/>
               </svg>
             </div>
-            <span class="action-grid-label">Slot List &amp; AI</span>
+            <span class="action-grid-label">AI Scanner &amp; Slots</span>
           </button>
 
           <button type="button" class="action-grid-card action-grid-card--coming-soon" id="btn-action-certificate">
@@ -703,41 +711,87 @@
         <!-- Warnings Container -->
         <div id="scanner-warnings-container"></div>
 
-        <!-- ===== CARD 1: LOBBY SCREENSHOTS ===== -->
-        <div class="scanner-card" id="scanner-card-lobby">
+        <!-- ===== CARD 1: UNIFIED UPLOAD ALL SCREENSHOTS ===== -->
+        <div class="scanner-card" id="scanner-card-unified-upload">
           <div class="scanner-card-header">
             <div class="scanner-card-badge">1</div>
             <div class="scanner-card-title-group">
-              <h2 class="scanner-card-title">Lobby Screenshots</h2>
-              <p class="scanner-card-instruction">Make sure the screenshot shows all players alive for the best accuracy.</p>
+              <h2 class="scanner-card-title">Upload All Screenshots</h2>
+              <p class="scanner-card-instruction">Select all your lobby slot-list and match result screenshots together. AI will identify and organize them automatically.</p>
             </div>
           </div>
 
-          <!-- Previews Row -->
-          <div class="scanner-previews-row">
-            <div class="scanner-preview-card" id="scanner-preview-card-lobby">
-              <div class="scanner-preview-thumb-area" id="scanner-thumb-lobby" title="Click to upload lobby screenshot">
-                <div class="scanner-preview-empty">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  <span class="scanner-preview-empty-text">Add Lobby</span>
-                </div>
-                <span class="scanner-preview-slot-tag">Slots 1-12</span>
+          <!-- Drag and Drop Unified Upload Box -->
+          <div class="scanner-dropzone" id="scanner-unified-dropzone">
+            <input type="file" id="scanner-unified-file-input" multiple accept="image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
+            <div class="scanner-dropzone-inner">
+              <div class="scanner-dropzone-icon">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
               </div>
-              <div class="scanner-preview-actions">
-                <button type="button" class="scanner-preview-btn" id="scanner-btn-update-lobby">Update</button>
-                <button type="button" class="scanner-preview-btn scanner-preview-btn--del" id="scanner-btn-del-lobby">Delete</button>
+              <div class="scanner-dropzone-title">Drag &amp; drop screenshots here, or click to browse</div>
+              <div class="scanner-dropzone-sub">Upload 1 Lobby Slot List + 2 Result Screenshots (PNG, JPG, WebP)</div>
+              <div class="scanner-dropzone-actions">
+                <button type="button" class="scanner-dropzone-btn" id="scanner-btn-add-screenshots">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>Select Screenshots</span>
+                </button>
+                <button type="button" class="scanner-dropzone-btn-ghost" id="scanner-btn-clear-all" style="display: none;">
+                  Clear All
+                </button>
               </div>
             </div>
           </div>
-          <input type="file" id="scanner-lobby-file-input" accept="image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
 
-          <!-- Remember Lobby Toggle -->
+          <!-- Total Count & Breakdown Bar -->
+          <div class="scanner-upload-summary-bar" id="scanner-upload-summary-bar" style="display: none;">
+            <div class="scanner-summary-left">
+              <span class="scanner-badge-count" id="scanner-unified-count-badge">0 Screenshots</span>
+              <span class="scanner-summary-breakdown" id="scanner-unified-breakdown">0 Slot Lists • 0 Results</span>
+            </div>
+            <button type="button" class="scanner-btn-add-more" id="scanner-btn-add-more">
+              + Add More
+            </button>
+          </div>
+
+          <!-- Uploaded Screenshots Thumbnails Grid -->
+          <div class="scanner-thumbnails-grid" id="scanner-unified-thumbnails">
+            <!-- Dynamically populated screenshot cards with thumbnail, filename, category dropdown, remove button -->
+          </div>
+
+          <!-- Notice / Provider Info -->
+          <div class="scanner-provider-info" id="scanner-provider-info">
+            <span class="scanner-provider-dot"></span>
+            <span id="scanner-provider-text">Intelligent on-device vision analysis active • Switch to Manual Mode anytime</span>
+          </div>
+
+          <!-- Analyze All Screenshots CTA Button -->
+          <div class="scanner-analyze-cta-row">
+            <button type="button" class="scanner-btn-analyze-all" id="scanner-btn-analyze-all">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              <span>Analyze All Screenshots</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ===== CARD 2: 12-SLOT LOBBY ROSTER ===== -->
+        <div class="scanner-card" id="scanner-card-slotlist">
+          <div class="scanner-card-header">
+            <div class="scanner-card-badge">2</div>
+            <div class="scanner-card-title-group">
+              <h2 class="scanner-card-title">12 Slot List Roster</h2>
+              <p class="scanner-card-instruction">Verify player names and teams for each slot (Slots 01-12). Missing slot players appear in Unassigned.</p>
+            </div>
+          </div>
+
+          <!-- Remember Lobby & Saved Slot Lists Bar -->
           <div class="scanner-remember-row">
             <div class="scanner-remember-left">
-              <div>
-                <div class="scanner-remember-label">Remember lobby</div>
-                <div class="scanner-remember-sub">Save confirmed lobby roster for future matches in this tournament</div>
-              </div>
+              <div class="scanner-remember-label">Remember lobby</div>
+              <div class="scanner-remember-sub">Save confirmed 12-slot roster for future matches in this tournament</div>
             </div>
             <label class="scanner-switch">
               <input type="checkbox" id="scanner-remember-toggle" checked />
@@ -745,7 +799,6 @@
             </label>
           </div>
 
-          <!-- Slot List Manager Bar -->
           <div class="scanner-slotlist-bar">
             <select class="scanner-slotlist-select" id="scanner-slotlist-select">
               <option value="">-- Use Saved Slot List --</option>
@@ -753,83 +806,101 @@
             <button type="button" class="scanner-slotlist-btn" id="scanner-btn-save-roster">Save Roster</button>
             <button type="button" class="scanner-slotlist-btn" id="scanner-btn-manage-roster">Manage</button>
           </div>
+
+          <!-- Quick Slot Navigation Jump Bar (Slots 01 to 12) -->
+          <div class="scanner-slot-jump-bar-wrap">
+            <div class="scanner-slot-jump-label">Quick Jump:</div>
+            <div class="scanner-slot-jump-bar" id="scanner-slot-jump-bar">
+              <!-- Dynamically populated 12 slot jump chips -->
+            </div>
+          </div>
+
+          <!-- Unassigned Players Section -->
+          <div class="scanner-unassigned-section" id="scanner-unassigned-section" style="display: none;">
+            <div class="scanner-unassigned-header">
+              <span class="scanner-warning-pill">Unassigned Players</span>
+              <span class="scanner-unassigned-count" id="scanner-unassigned-count">0 players</span>
+            </div>
+            <p class="scanner-unassigned-desc">These players were detected without a determined slot. Select a slot to assign them.</p>
+            <div class="scanner-unassigned-list" id="scanner-unassigned-list">
+              <!-- Dynamically populated unassigned player chips -->
+            </div>
+          </div>
+
+          <!-- 12 Slot Cards Container -->
+          <div class="scanner-12slots-container" id="scanner-12slots-container">
+            <!-- Dynamically populated exactly 12 editable slot cards -->
+          </div>
         </div>
 
-        <!-- ===== CARD 2: RESULT SCREENSHOTS ===== -->
+        <!-- ===== CARD 3: 12-SLOT MATCH END RESULTS ===== -->
         <div class="scanner-card" id="scanner-card-results">
           <div class="scanner-card-header">
-            <div class="scanner-card-badge">2</div>
+            <div class="scanner-card-badge">3</div>
             <div class="scanner-card-title-group">
-              <h2 class="scanner-card-title">Result Screenshots</h2>
-              <p class="scanner-card-instruction">Make sure screenshots are clear and kill counts are accurate.</p>
+              <h2 class="scanner-card-title">12 Match End Results</h2>
+              <p class="scanner-card-instruction">Review placements, individual player kills, and team kill totals. Overlapping screenshots are merged without duplicate kills.</p>
             </div>
           </div>
 
-          <!-- Result Screenshots Previews Row (2 Result screens) -->
-          <div class="scanner-previews-row">
-            <!-- Result Screen 1 -->
-            <div class="scanner-preview-card" id="scanner-preview-card-res1">
-              <div class="scanner-preview-thumb-area" id="scanner-thumb-res1" title="Click to upload Result 1 (Top)">
-                <div class="scanner-preview-empty">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  <span class="scanner-preview-empty-text">Add Screen 1</span>
-                </div>
-                <span class="scanner-preview-slot-tag">R1 (Top)</span>
-              </div>
-              <div class="scanner-preview-actions">
-                <button type="button" class="scanner-preview-btn" id="scanner-btn-update-res1">Update</button>
-                <button type="button" class="scanner-preview-btn scanner-preview-btn--del" id="scanner-btn-del-res1">Delete</button>
-              </div>
-            </div>
-
-            <!-- Result Screen 2 -->
-            <div class="scanner-preview-card" id="scanner-preview-card-res2">
-              <div class="scanner-preview-thumb-area" id="scanner-thumb-res2" title="Click to upload Result 2 (Bottom)">
-                <div class="scanner-preview-empty">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  <span class="scanner-preview-empty-text">Add Screen 2</span>
-                </div>
-                <span class="scanner-preview-slot-tag">R2 (Bottom)</span>
-              </div>
-              <div class="scanner-preview-actions">
-                <button type="button" class="scanner-preview-btn" id="scanner-btn-update-res2">Update</button>
-                <button type="button" class="scanner-preview-btn scanner-preview-btn--del" id="scanner-btn-del-res2">Delete</button>
-              </div>
-            </div>
-          </div>
-          <input type="file" id="scanner-res1-file-input" accept="image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
-          <input type="file" id="scanner-res2-file-input" accept="image/png,image/jpeg,image/jpg,image/webp" style="display: none;" />
-
-          <!-- Extracted Team Results Header -->
-          <div class="scanner-results-section-header">
-            <span class="scanner-results-section-title">Teams &amp; Results</span>
-            <button type="button" class="scanner-slotlist-btn" id="scanner-btn-add-team-slot">+ Add Team</button>
-          </div>
-
-          <!-- Team Result Cards Container -->
-          <div class="scanner-teams-list" id="scanner-teams-list">
-            <!-- Dynamically populated team cards with purple pills and inline editor -->
+          <!-- 12 Result Cards Container -->
+          <div class="scanner-12results-container" id="scanner-12results-container">
+            <!-- Dynamically populated exactly 12 editable result cards -->
           </div>
         </div>
 
-        <div style="height: 60px;"></div>
+        <!-- ===== CARD 4: MATCH POINTS & STANDINGS PREVIEW ===== -->
+        <div class="scanner-card" id="scanner-card-standings">
+          <div class="scanner-card-header">
+            <div class="scanner-card-badge">4</div>
+            <div class="scanner-card-title-group">
+              <h2 class="scanner-card-title">Match Points Preview</h2>
+              <p class="scanner-card-instruction">Calculated dynamically by ScoringEngine using official Free Fire rules.</p>
+            </div>
+          </div>
+
+          <div class="scanner-table-wrap">
+            <table class="scanner-preview-table" id="scanner-standings-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Slot</th>
+                  <th>Team</th>
+                  <th>Place Pts</th>
+                  <th>Kill Pts</th>
+                  <th>Mult</th>
+                  <th>Total Pts</th>
+                </tr>
+              </thead>
+              <tbody id="scanner-standings-table-body">
+                <!-- Dynamically populated standings rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="height: 80px;"></div>
       </div>
 
       <!-- Sticky Bottom Action Bar -->
       <div class="scanner-bottom-action-bar">
         <div class="scanner-bottom-actions-row">
+          <button type="button" class="scanner-secondary-btn" id="scanner-btn-review-next" title="Scroll to next card with warnings or missing data">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <span>Review Next Issue</span>
+          </button>
+          <button type="button" class="scanner-secondary-btn" id="scanner-btn-reset-overrides" title="Reset all manual team kill overrides back to individual player sums">
+            <span>Reset Overrides</span>
+          </button>
           <button type="button" class="scanner-secondary-btn" id="scanner-btn-recalc" title="Recalculate points via ScoringEngine">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
             <span>Recalculate</span>
           </button>
-          <button type="button" class="scanner-secondary-btn" id="scanner-btn-reset-overrides" title="Reset all manual overrides to player kill sum">
-            <span>Reset Overrides</span>
-          </button>
         </div>
         <div class="scanner-bottom-actions-row">
-          <button type="button" class="scanner-main-upload-btn" id="scanner-btn-upload-all">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-            <span>Upload All Screenshots</span>
+          <button type="button" class="scanner-main-upload-btn" id="scanner-btn-analyze-bottom">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>Analyze All Screenshots</span>
           </button>
           <button type="button" class="scanner-save-results-btn" id="scanner-btn-save-results">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
