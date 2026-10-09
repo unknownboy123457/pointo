@@ -496,6 +496,15 @@
   });
 
   btnActionWarheads?.addEventListener('click', () => showToast('Warheads — Coming Soon'));
+
+  // Auto Team Simulator button
+  const btnActionSimulator = document.getElementById('btn-action-simulator');
+  btnActionSimulator?.addEventListener('click', () => {
+    if (window.TeamSimulator && currentUser.id) {
+      window.TeamSimulator.open(currentUser.id);
+    }
+  });
+
   const btnActionDesign = document.getElementById('btn-action-design');
   btnActionDesign?.addEventListener('click', () => {
     if (activeTournament && window.DesignManager) {
@@ -1262,10 +1271,17 @@
   document.getElementById('qa-design-studio')?.addEventListener('click', () => navigateTo('design'));
 
   // Quick Action placeholders
-  ['qa-import-tournament', 'qa-import-team', 'qa-merge-tournament'].forEach((id) => {
+  ['qa-import-tournament', 'qa-merge-tournament'].forEach((id) => {
     document.getElementById(id)?.addEventListener('click', () => {
       showToast('Coming soon');
     });
+  });
+
+  // Import Team → Open Auto Team Simulator
+  document.getElementById('qa-import-team')?.addEventListener('click', () => {
+    if (window.TeamSimulator && currentUser.id) {
+      window.TeamSimulator.open(currentUser.id);
+    }
   });
 
   // ========================================
@@ -2399,9 +2415,14 @@
       try {
         window.TemplateEditor?.init();
         window.DesignManager?.init(currentUser);
+        window.TeamSimulator?.init();
       } catch (designInitErr) {
         console.warn('LRD PointCalc: Design studio init note:', designInitErr);
       }
+
+      // Expose navigation for simulator integration
+      window.openTournamentDashboard = openTournamentDashboard;
+      window.loadTournaments = loadTournaments;
 
       setupSupabaseAuthListener();
       await checkInitialSession();

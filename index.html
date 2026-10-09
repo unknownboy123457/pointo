@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="styles/ai-wizard.css" />
   <link rel="stylesheet" href="styles/design.css" />
   <link rel="stylesheet" href="styles/template-editor.css" />
+  <link rel="stylesheet" href="styles/team-simulator.css" />
 </head>
 <body>
 
@@ -497,15 +498,14 @@
             <span class="action-grid-label">Warheads</span>
           </button>
 
-          <button type="button" class="action-grid-card action-grid-card--coming-soon" id="btn-action-fraggers">
+          <button type="button" class="action-grid-card" id="btn-action-simulator">
             <div class="action-grid-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/>
-                <line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>
+                <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
               </svg>
             </div>
-            <span class="action-grid-label">Fraggers</span>
+            <span class="action-grid-label">Team Simulator</span>
           </button>
 
           <button type="button" class="action-grid-card" id="btn-action-design">
@@ -1856,6 +1856,238 @@
       </button>
     </nav>
 
+    <!-- ===== AUTO TEAM SIMULATOR MODAL ===== -->
+    <div id="modal-team-simulator" class="sim-modal-overlay" aria-label="Auto Team Simulator">
+      <div class="sim-modal">
+        <!-- Header -->
+        <div class="sim-header">
+          <div class="sim-header-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+          </div>
+          <div class="sim-header-text">
+            <div class="sim-header-title">Auto Team Simulator</div>
+            <div class="sim-header-subtitle">Generate balanced teams instantly</div>
+          </div>
+          <button type="button" class="sim-close-btn" id="sim-close-btn" aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Scrollable Body -->
+        <div class="sim-body">
+          <!-- Error Banner -->
+          <div id="sim-error-banner" class="sim-error-banner"></div>
+
+          <!-- ===== CONFIG VIEW ===== -->
+          <div id="sim-view-config" class="sim-view active">
+
+            <!-- Tournament Selection -->
+            <div class="sim-section">
+              <div class="sim-section-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>
+                Tournament
+              </div>
+              <div id="sim-tourn-select" class="sim-tourn-select-group"></div>
+              <button type="button" class="sim-new-tourn-toggle" id="sim-new-tourn-toggle">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                Create New Tournament
+              </button>
+              <div id="sim-new-tourn-form" class="sim-new-tourn-form">
+                <div class="sim-field">
+                  <label class="sim-field-label">Tournament Name</label>
+                  <input type="text" class="sim-input" id="sim-new-tourn-name" placeholder="e.g. LRD Night Cup" maxlength="60" autocomplete="off" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Player Configuration -->
+            <div class="sim-section">
+              <div class="sim-section-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Player Configuration
+              </div>
+              <div class="sim-input-group">
+                <div class="sim-field-row">
+                  <div class="sim-field">
+                    <label class="sim-field-label">Total Players</label>
+                    <input type="number" class="sim-input" id="sim-total-players" min="2" max="192" value="48" />
+                  </div>
+                  <div class="sim-field">
+                    <label class="sim-field-label">Players per Team</label>
+                    <input type="number" class="sim-input" id="sim-per-team" min="1" max="12" value="4" />
+                  </div>
+                </div>
+                <div class="sim-field">
+                  <label class="sim-field-label">Game Mode</label>
+                  <select class="sim-select" id="sim-game-mode">
+                    <option value="solo">Solo (1 per team)</option>
+                    <option value="duo">Duo (2 per team)</option>
+                    <option value="trio">Trio (3 per team)</option>
+                    <option value="squad" selected>Squad (4 per team)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Calculated Team Count -->
+              <div class="sim-calculated-info">
+                <div class="sim-calc-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                </div>
+                <div>
+                  <div class="sim-calc-text" id="sim-calc-team-count">12 Teams</div>
+                  <div class="sim-calc-sub" id="sim-calc-team-sub">4 players per team, evenly distributed</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Team Naming -->
+            <div class="sim-section">
+              <div class="sim-section-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                Team Naming
+              </div>
+              <div class="sim-chips" id="sim-naming-chips">
+                <button type="button" class="sim-chip selected" data-naming="auto">Auto (Team 1, 2...)</button>
+                <button type="button" class="sim-chip" data-naming="prefix">Custom Prefix</button>
+              </div>
+              <div id="sim-prefix-container" style="display: none; margin-top: 10px;">
+                <input type="text" class="sim-input" id="sim-prefix-input" placeholder="e.g. Squad, Clan, etc." value="Team" />
+              </div>
+              <div class="sim-naming-preview" id="sim-naming-preview"></div>
+            </div>
+
+            <!-- Player Names -->
+            <div class="sim-section">
+              <div class="sim-section-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Player Names (Optional)
+              </div>
+              <textarea class="sim-textarea" id="sim-player-names" placeholder="Enter player names, one per line...&#10;&#10;Player1&#10;Player2&#10;Player3"></textarea>
+              <div class="sim-textarea-hint">Separate names by new line, comma, or semicolon. Names auto-update the total player count.</div>
+              <div class="sim-import-row">
+                <button type="button" class="sim-import-btn" id="sim-import-csv">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+                  Import CSV
+                </button>
+                <input type="file" accept=".csv,.txt" id="sim-csv-input" style="display: none;" />
+              </div>
+            </div>
+
+            <!-- Randomization -->
+            <div class="sim-section">
+              <div class="sim-section-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+                Randomization
+              </div>
+              <div class="sim-input-group" style="gap: 8px;">
+                <div class="sim-toggle-row">
+                  <div>
+                    <div class="sim-toggle-label">Shuffle Players</div>
+                    <div class="sim-toggle-sub">Randomize player order before distributing</div>
+                  </div>
+                  <button type="button" class="sim-toggle active" id="sim-toggle-shuffle"></button>
+                </div>
+                <div class="sim-toggle-row">
+                  <div>
+                    <div class="sim-toggle-label">Skill Balance</div>
+                    <div class="sim-toggle-sub">Distribute top players evenly across teams</div>
+                  </div>
+                  <button type="button" class="sim-toggle" id="sim-toggle-balance"></button>
+                </div>
+                <div class="sim-field">
+                  <label class="sim-field-label">Seed (Optional)</label>
+                  <div class="sim-seed-row">
+                    <input type="text" class="sim-input sim-seed-input" id="sim-seed-input" placeholder="Random seed for reproducibility" />
+                    <button type="button" class="sim-seed-btn" id="sim-seed-randomize" title="Generate random seed">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== GENERATING VIEW ===== -->
+          <div id="sim-view-generating" class="sim-view">
+            <div class="sim-generating">
+              <div class="sim-gen-spinner"></div>
+              <div class="sim-gen-text">Generating Teams...</div>
+              <div class="sim-gen-sub">Distributing players and applying randomization</div>
+            </div>
+          </div>
+
+          <!-- ===== PREVIEW VIEW ===== -->
+          <div id="sim-view-preview" class="sim-view">
+            <!-- Stats -->
+            <div class="sim-results-header">
+              <div class="sim-results-stats">
+                <div class="sim-stat">
+                  <div class="sim-stat-value" id="sim-preview-team-count">0</div>
+                  <div class="sim-stat-label">Teams</div>
+                </div>
+                <div class="sim-stat">
+                  <div class="sim-stat-value" id="sim-preview-player-count">0</div>
+                  <div class="sim-stat-label">Players</div>
+                </div>
+                <div class="sim-stat">
+                  <div class="sim-stat-value" id="sim-preview-team-size">4</div>
+                  <div class="sim-stat-label">Per Team</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Uneven Warning -->
+            <div class="sim-warning" id="sim-uneven-warning" style="display: none;">
+              <svg class="sim-warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div class="sim-warning-text" id="sim-warning-text"></div>
+            </div>
+
+            <!-- Team List -->
+            <div class="sim-team-list" id="sim-team-list"></div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="sim-footer" id="sim-footer-config">
+          <div class="sim-footer-spacer"></div>
+          <button type="button" class="sim-btn sim-btn-primary" id="sim-btn-generate">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Generate Teams
+          </button>
+        </div>
+        <div class="sim-footer" id="sim-footer-preview" style="display: none;">
+          <button type="button" class="sim-btn sim-btn-secondary" id="sim-btn-back">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+            Back
+          </button>
+          <button type="button" class="sim-btn sim-btn-secondary" id="sim-btn-regenerate">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            Reshuffle
+          </button>
+          <div class="sim-footer-spacer"></div>
+          <button type="button" class="sim-btn sim-btn-primary" id="sim-btn-save">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Save Teams
+          </button>
+        </div>
+
+        <!-- Confirmation Overlay -->
+        <div id="sim-confirm-overlay" class="sim-confirm-overlay">
+          <div class="sim-confirm-card">
+            <div class="sim-confirm-title" id="sim-confirm-title">Replace Existing Teams?</div>
+            <div class="sim-confirm-desc" id="sim-confirm-desc">This will replace all existing teams in this tournament.</div>
+            <div class="sim-confirm-actions">
+              <button type="button" class="sim-btn sim-btn-secondary" id="sim-confirm-no">Cancel</button>
+              <button type="button" class="sim-btn sim-btn-primary" id="sim-confirm-yes">Replace Teams</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Supabase JS CDN (v2) -->
@@ -1875,6 +2107,7 @@
   <script src="scripts/design/design-carousel.js?v=1.0.4"></script>
   <script src="scripts/design/export-engine.js?v=1.0.4"></script>
   <script src="scripts/design/template-editor.js?v=1.0.4"></script>
+  <script src="scripts/design/team-simulator.js?v=1.0.4"></script>
   <script src="scripts/design/design-manager.js?v=1.0.4"></script>
   <!-- Application Logic & UI Controller -->
   <script src="scripts/app.js?v=1.0.4"></script>
