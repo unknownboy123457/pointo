@@ -11,6 +11,9 @@ package-lock.json
 *.cert
 credentials.json
 client_secret*.json
+config.js
+scripts/config.js
+!scripts/config.example.js
 
 # Logs
 logs/
