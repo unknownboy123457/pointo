@@ -123,18 +123,6 @@
         }
       });
 
-      // "Enter player kills" action pill button
-      document.getElementById('scanner-btn-enter-kills')?.addEventListener('click', () => {
-        const panel = document.getElementById('scanner-player-kills-panel');
-        if (panel) {
-          const isVisible = panel.style.display !== 'none';
-          panel.style.display = isVisible ? 'none' : 'block';
-          if (!isVisible) {
-            this.renderPlayerKillsPanel();
-            panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }
-      });
 
       // Remember Lobby switch
       const rememberSwitch = document.getElementById('scanner-remember-toggle');
@@ -910,7 +898,7 @@
       for (let i = 0; i < slots.length; i++) {
         const s = slots[i];
         if (s.status === 'review' || s.players.length === 0) {
-          const cardEl = document.getElementById(`scanner-slot-card-${i}`);
+          const cardEl = document.getElementById(`scanner-lobby-card-${i}`) || document.getElementById(`scanner-slot-card-${i}`);
           if (cardEl) {
             cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
             cardEl.classList.add('pulse-highlight');
@@ -1152,11 +1140,10 @@
     render() {
       this.renderUnifiedUploads();
       this.renderLobbyPreviews();
+      this.render12LobbySlots();
       this.renderResultsPreviews();
-      this.renderCompactTeamResults();
-      this.renderSlotJumpBar();
       this.renderUnassignedPlayers();
-      this.render12SlotsList();
+      this.render12ResultSlots();
       this.renderStandingsPreview();
       this.updateUploadButtonLabel();
     },
@@ -1362,146 +1349,87 @@
       });
     },
 
-    // Compact Team Result Rows matching reference screenshot (e.g. 07, 7. TEAM FLUG, 19)
-    renderCompactTeamResults() {
-      const container = document.getElementById('scanner-compact-team-results');
+    // ==================================================================
+    // 1. EXACTLY 12 LOBBY SLOTS (CARD 1)
+    // ==================================================================
+    render12LobbySlots() {
+      const container = document.getElementById('scanner-lobby-12slots-container');
       if (!container) return;
       container.innerHTML = '';
 
-      // Display up to 6 prominent preview rows
-      const displayResults = results.slice(0, 6);
+      const totalPlayersBadge = document.getElementById('scanner-lobby-total-players-badge');
+      if (totalPlayersBadge) {
+        const totalP = slots.reduce((sum, s) => sum + (s.players || []).length, 0);
+        totalPlayersBadge.textContent = `${totalP} Players • 12 Slots`;
+      }
 
-      displayResults.forEach((res, idx) => {
-        const slot = slots[idx];
-        const slotNumStr = String(res.slot).padStart(2, '0');
-        const teamName = slot ? slot.teamName : res.teamName || `Team ${res.slot}`;
-        const kills = Number(res.totalKills) || 0;
+      slots.forEach((slot, slotIdx) => {
+        const card = document.createElement('div');
+        card.className = `scanner-lobby-slot-card ${slot.isActive ? '' : 'is-inactive'}`;
+        card.id = `scanner-lobby-card-${slotIdx}`;
 
-        const row = document.createElement('div');
-        row.className = 'scanner-ref-team-row';
-        row.innerHTML = `
-          <span class="scanner-ref-slot-pill">${slotNumStr}</span>
-          <span class="scanner-ref-team-name">${escapeHtml(res.slot)}. ${escapeHtml(teamName)}</span>
-          <span class="scanner-ref-kills-pill">${kills}</span>
-        `;
+        const pCount = (slot.players || []).length;
 
-        row.addEventListener('click', () => {
-          const panel = document.getElementById('scanner-player-kills-panel');
-          if (panel) {
-            panel.style.display = 'block';
-            this.renderPlayerKillsPanel(idx);
-            panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        });
-
-        container.appendChild(row);
-      });
-    },
-
-    // Inline Player Kills Stepper Panel
-    renderPlayerKillsPanel(focusSlotIdx = null) {
-      const panel = document.getElementById('scanner-player-kills-panel');
-      if (!panel) return;
-      panel.innerHTML = `
-        <div class="scanner-kills-panel-header">
-          <span>✏️ Enter Individual Player Kills</span>
-          <button type="button" class="icon-btn" id="scanner-btn-close-kills-panel" style="font-size: 16px; color: #cbd5e1; cursor: pointer;">✕</button>
-        </div>
-      `;
-
-      panel.querySelector('#scanner-btn-close-kills-panel')?.addEventListener('click', () => {
-        panel.style.display = 'none';
-      });
-
-      const slotsToRender = focusSlotIdx !== null ? [focusSlotIdx] : slots.map((_, i) => i);
-
-      slotsToRender.forEach((slotIdx) => {
-        const slot = slots[slotIdx];
-        const res = results[slotIdx];
-        if (!slot || !res) return;
-
-        const group = document.createElement('div');
-        group.className = 'scanner-kills-team-group';
-        group.innerHTML = `
-          <div class="scanner-kills-group-title">
-            <span>Slot ${String(slot.slot).padStart(2, '0')} • ${escapeHtml(slot.teamName)}</span>
-            <span class="scanner-ref-kills-pill">${res.totalKills} Kills</span>
+        card.innerHTML = `
+          <div class="scanner-compact-slot-header">
+            <div class="scanner-compact-header-left">
+              <span class="scanner-slot-num-badge">Slot ${slot.slot}</span>
+              <input type="text" class="scanner-lobby-team-input" value="${escapeHtml(slot.teamName)}" placeholder="Team ${slot.slot}" data-slot-idx="${slotIdx}" title="Team Name" />
+            </div>
+            <div class="scanner-compact-header-right">
+              <span class="scanner-pcount-badge">${pCount}P</span>
+            </div>
           </div>
-          <div class="scanner-kills-players-container">
-            ${slot.players.map((p, pIdx) => `
-              <div class="scanner-kills-player-row">
-                <span class="scanner-kills-player-name">${pIdx + 1}. ${escapeHtml(p.name)}</span>
-                <div class="scanner-kills-input-wrap">
-                  <button type="button" class="scanner-kills-stepper-btn btn-minus" data-s-idx="${slotIdx}" data-p-idx="${pIdx}">−</button>
-                  <input type="number" min="0" max="99" class="scanner-kills-num-input" value="${Number(p.kills) || 0}" data-s-idx="${slotIdx}" data-p-idx="${pIdx}" />
-                  <button type="button" class="scanner-kills-stepper-btn btn-plus" data-s-idx="${slotIdx}" data-p-idx="${pIdx}">+</button>
-                </div>
+
+          <div class="scanner-lobby-players-list">
+            ${(slot.players || []).map((p, pIdx) => `
+              <div class="scanner-lobby-player-row">
+                <span class="scanner-p-idx">${pIdx + 1}.</span>
+                <input type="text" class="scanner-lobby-player-input" value="${escapeHtml(p.name)}" placeholder="Player Name" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}" />
+                <button type="button" class="scanner-lobby-player-del" title="Remove Player" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}">×</button>
               </div>
             `).join('')}
+            ${pCount === 0 ? '<div class="scanner-lobby-no-players">No players. Tap "+ Add Player" below.</div>' : ''}
+          </div>
+
+          <div class="scanner-slot-actions-bar">
+            <button type="button" class="scanner-btn-add-p" data-slot-idx="${slotIdx}">+ Add Player</button>
           </div>
         `;
 
-        group.querySelectorAll('.btn-minus').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const sIdx = parseInt(btn.dataset.sIdx, 10);
-            const pIdx = parseInt(btn.dataset.pIdx, 10);
-            const cur = Number(slots[sIdx].players[pIdx].kills) || 0;
-            this.updatePlayerKill(sIdx, pIdx, Math.max(0, cur - 1));
-            this.renderPlayerKillsPanel(focusSlotIdx);
-          });
+        // Team Name edit
+        card.querySelector('.scanner-lobby-team-input')?.addEventListener('change', (e) => {
+          this.updateTeamName(slotIdx, e.target.value);
         });
 
-        group.querySelectorAll('.btn-plus').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const sIdx = parseInt(btn.dataset.sIdx, 10);
-            const pIdx = parseInt(btn.dataset.pIdx, 10);
-            const cur = Number(slots[sIdx].players[pIdx].kills) || 0;
-            this.updatePlayerKill(sIdx, pIdx, cur + 1);
-            this.renderPlayerKillsPanel(focusSlotIdx);
-          });
-        });
-
-        group.querySelectorAll('.scanner-kills-num-input').forEach((inp) => {
+        // Player Name edit
+        card.querySelectorAll('.scanner-lobby-player-input').forEach((inp) => {
           inp.addEventListener('change', (e) => {
-            const sIdx = parseInt(e.target.dataset.sIdx, 10);
             const pIdx = parseInt(e.target.dataset.pIdx, 10);
-            this.updatePlayerKill(sIdx, pIdx, e.target.value);
-            this.renderPlayerKillsPanel(focusSlotIdx);
+            this.updatePlayerName(slotIdx, pIdx, e.target.value);
           });
         });
 
-        panel.appendChild(group);
+        // Remove Player
+        card.querySelectorAll('.scanner-lobby-player-del').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const pIdx = parseInt(e.target.dataset.pIdx, 10);
+            this.removePlayer(slotIdx, pIdx);
+          });
+        });
+
+        // Add Player
+        card.querySelector('.scanner-btn-add-p')?.addEventListener('click', () => {
+          this.addPlayer(slotIdx);
+        });
+
+        container.appendChild(card);
       });
     },
 
-    renderSlotJumpBar() {
-      const bar = document.getElementById('scanner-slot-jump-bar');
-      if (!bar) return;
-      bar.innerHTML = '';
-
-      for (let i = 0; i < 12; i++) {
-        const slot = slots[i];
-        const res = results[i];
-        const hasWarning = res && res.warnings && res.warnings.length > 0;
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = `scanner-jump-chip ${hasWarning ? 'has-warning' : ''}`;
-        chip.innerHTML = `
-          <span>${String(i + 1).padStart(2, '0')}</span>
-          ${hasWarning ? '<span class="jump-dot"></span>' : ''}
-        `;
-        chip.addEventListener('click', () => {
-          const cardEl = document.getElementById(`scanner-slot-card-${i}`);
-          if (cardEl) {
-            cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            cardEl.classList.add('pulse-highlight');
-            setTimeout(() => cardEl.classList.remove('pulse-highlight'), 1500);
-          }
-        });
-        bar.appendChild(chip);
-      }
-    },
-
+    // ==================================================================
+    // UNMATCHED PLAYERS (CARD 2)
+    // ==================================================================
     renderUnassignedPlayers() {
       const section = document.getElementById('scanner-unassigned-section');
       const listEl = document.getElementById('scanner-unassigned-list');
@@ -1516,202 +1444,211 @@
       }
 
       section.style.display = 'block';
-      if (countEl) countEl.textContent = `${unassignedPlayers.length} player${unassignedPlayers.length > 1 ? 's' : ''}`;
+      if (countEl) countEl.textContent = `${unassignedPlayers.length} unmatched player${unassignedPlayers.length > 1 ? 's' : ''}`;
 
       unassignedPlayers.forEach((p) => {
-        const chip = document.createElement('div');
-        chip.className = 'scanner-unassigned-item';
-        chip.innerHTML = `
-          <span class="scanner-unassigned-name">${escapeHtml(p.name)}</span>
+        const item = document.createElement('div');
+        item.className = 'scanner-unassigned-item';
+        item.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="scanner-unassigned-name">${escapeHtml(p.name)}</span>
+            <span class="scanner-res-kills-pill" style="font-size: 10px; padding: 2px 6px;">${p.kills} Kills</span>
+          </div>
           <select class="scanner-assign-select" data-p-id="${p.id}">
             <option value="">Assign to Slot...</option>
-            ${slots.map((s, idx) => `<option value="${idx}">Slot ${String(s.slot).padStart(2, '0')} (${escapeHtml(s.teamName)})</option>`).join('')}
+            ${slots.map((s, idx) => `<option value="${idx}">Slot ${s.slot} (${escapeHtml(s.teamName)})</option>`).join('')}
           </select>
         `;
 
-        chip.querySelector('.scanner-assign-select')?.addEventListener('change', (e) => {
+        item.querySelector('.scanner-assign-select')?.addEventListener('change', (e) => {
           const targetSlotIdx = parseInt(e.target.value, 10);
           if (!isNaN(targetSlotIdx)) {
             this.assignUnassignedPlayer(p.id, targetSlotIdx);
           }
         });
 
-        listEl.appendChild(chip);
+        listEl.appendChild(item);
       });
     },
 
-    // Compact 12-Slot Review Cards matching Section 2 requirements
-    render12SlotsList() {
-      const container = document.getElementById('scanner-12slots-container');
+    assignUnassignedPlayer(playerId, targetSlotIdx) {
+      const idx = unassignedPlayers.findIndex((p) => p.id === playerId);
+      if (idx === -1 || !slots[targetSlotIdx]) return;
+
+      pushHistory();
+      const p = unassignedPlayers.splice(idx, 1)[0];
+      const targetSlotNum = slots[targetSlotIdx].slot;
+
+      // Store confirmed manual assignment
+      if (window.AIService && p.name) {
+        confirmedManualAssignments.set(window.AIService.normalizePlayerName(p.name), targetSlotNum);
+      }
+
+      const targetSlot = slots[targetSlotIdx];
+      let existingP = targetSlot.players.find((pl) => window.AIService?.matchPlayerName(pl.name, p.name));
+      if (existingP) {
+        existingP.kills = Number(p.kills) || 0;
+        existingP.verificationStatus = 'verified';
+      } else {
+        targetSlot.players.push({
+          id: p.id,
+          name: p.name,
+          slot: targetSlotNum,
+          teamName: targetSlot.teamName,
+          kills: Number(p.kills) || 0,
+          source: 'Manual Assignment',
+          confidence: 1.0,
+          verificationStatus: 'verified',
+        });
+      }
+
+      if (p.rank && results[targetSlotIdx] && !results[targetSlotIdx].placement) {
+        results[targetSlotIdx].placement = p.rank;
+      }
+
+      this.recalculateTeam(targetSlotIdx);
+      this.recalculateAll();
+      this.render();
+      if (window.showToast) {
+        window.showToast(`Assigned "${p.name}" (${p.kills} kills) to Slot ${targetSlotNum}`);
+      }
+    },
+
+    // ==================================================================
+    // 2. EXACTLY 12 END RESULTS (CARD 2)
+    // ==================================================================
+    render12ResultSlots() {
+      const container = document.getElementById('scanner-results-12slots-container');
       if (!container) return;
       container.innerHTML = '';
 
-      slots.forEach((slot, slotIdx) => {
-        const isExpanded = expandedSlotCards.has(slotIdx);
-        const res = results[slotIdx];
-        const pCount = slot.players.length;
-        const playerNamesPreview = slot.players.map((p) => p.name).join(', ') || 'No players added';
+      const totalKillsBadge = document.getElementById('scanner-results-total-kills-badge');
+      if (totalKillsBadge) {
+        const sumKills = results.reduce((sum, r) => sum + (Number(r.totalKills) || 0), 0);
+        totalKillsBadge.textContent = `${sumKills} Total Kills`;
+      }
 
+      results.forEach((res, slotIdx) => {
+        const slot = slots[slotIdx] || { players: [] };
         const card = document.createElement('div');
-        card.className = `scanner-compact-slot-card ${slot.isActive ? '' : 'is-inactive'}`;
-        card.id = `scanner-slot-card-${slotIdx}`;
+        card.className = `scanner-result-slot-card ${res.isExcluded ? 'is-inactive' : ''}`;
+        card.id = `scanner-res-card-${slotIdx}`;
 
         card.innerHTML = `
           <div class="scanner-compact-slot-header">
             <div class="scanner-compact-header-left">
-              <span class="scanner-slot-num-badge">Slot ${String(slot.slot).padStart(2, '0')}</span>
-              <span class="scanner-compact-team-title">${escapeHtml(slot.teamName)}</span>
+              <span class="scanner-slot-num-badge">Slot ${res.slot}</span>
+              <span class="scanner-compact-team-title" title="${escapeHtml(res.teamName)}">${escapeHtml(res.teamName)}</span>
             </div>
             <div class="scanner-compact-header-right">
-              ${res && res.placement ? `<span class="scanner-placement-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(234, 179, 8, 0.2); color: #fbbf24; border-radius: 999px; font-weight: 700;">#${res.placement}</span>` : ''}
-              <span class="scanner-pcount-badge">${pCount}P</span>
-              ${res ? `<span class="scanner-ref-kills-pill" style="font-size: 11px; padding: 2px 8px;">${res.totalKills}K</span>` : ''}
-              ${(slot.status === 'review' || (res && res.warnings && res.warnings.length > 0)) ? `<span class="scanner-review-dot" title="Needs review" style="color: #f59e0b; font-size: 11px;">⚠️</span>` : ''}
+              <label class="scanner-res-rank-label">
+                Rank: <input type="number" min="1" max="12" class="scanner-res-rank-input" value="${res.placement !== null && res.placement !== undefined ? res.placement : ''}" placeholder="#" data-slot-idx="${slotIdx}" title="Edit Placement" />
+              </label>
+              <span class="scanner-res-kills-pill" id="scanner-res-totalkills-${slotIdx}">${res.totalKills} Kills</span>
             </div>
           </div>
 
-          <div class="scanner-compact-roster-preview" title="${escapeHtml(playerNamesPreview)}">
-            ${escapeHtml(playerNamesPreview)}
-          </div>
-
-          <button type="button" class="scanner-btn-expand-slot" data-slot-idx="${slotIdx}">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              ${isExpanded ? '<polyline points="18 15 12 9 6 15"/>' : '<polyline points="6 9 12 15 18 9"/>'}
-            </svg>
-            <span>${isExpanded ? 'Collapse' : 'Expand / Edit'}</span>
-          </button>
-
-          ${isExpanded ? `
-            <div class="scanner-slot-expanded-body">
-              <div class="scanner-team-name-row">
-                <input type="text" class="team-name-inp" value="${escapeHtml(slot.teamName)}" placeholder="Team Name" data-slot-idx="${slotIdx}" />
-              </div>
-
-              <div class="scanner-players-list-edit" style="display: flex; flex-direction: column; gap: 6px;">
-                ${slot.players.map((p, pIdx) => `
-                  <div class="scanner-player-edit-row">
-                    <span style="font-size: 11px; color: #94a3b8; width: 14px;">${pIdx + 1}.</span>
-                    <input type="text" class="player-name-inp" value="${escapeHtml(p.name)}" placeholder="Player Name" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}" />
-                    <input type="number" min="0" class="player-kills-inp" value="${Number(p.kills) || 0}" title="Kills" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}" />
-                    <select class="player-move-sel" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}">
-                      <option value="">Move...</option>
-                      ${slots.map((s, targetIdx) => targetIdx !== slotIdx ? `<option value="${targetIdx}">Slot ${String(s.slot).padStart(2, '0')}</option>` : '').join('')}
-                    </select>
-                    <button type="button" class="player-del-btn" title="Remove" data-slot-idx="${slotIdx}" data-p-idx="${pIdx}">×</button>
-                  </div>
-                `).join('')}
-              </div>
-
-              <div class="scanner-slot-actions-bar">
-                <button type="button" class="scanner-btn-add-p" data-slot-idx="${slotIdx}">+ Add Player</button>
-                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                  <button type="button" class="scanner-btn-retry-slot" data-slot-idx="${slotIdx}">Retry Slot</button>
-                  <button type="button" class="scanner-btn-recalc-slot" data-slot-idx="${slotIdx}">Recalculate</button>
-                  <button type="button" class="scanner-btn-clear-slot" data-slot-idx="${slotIdx}">Clear Slot</button>
-                  <button type="button" class="scanner-btn-toggle-active" data-slot-idx="${slotIdx}">
-                    ${slot.isActive ? 'Mark Inactive' : 'Restore Slot'}
-                  </button>
+          <div class="scanner-res-players-list">
+            ${(slot.players || []).map((p, pIdx) => `
+              <div class="scanner-res-player-row">
+                <span class="scanner-res-p-name" title="${escapeHtml(p.name)}">${pIdx + 1}. ${escapeHtml(p.name)}</span>
+                <div class="scanner-res-kill-controls">
+                  <button type="button" class="scanner-kills-stepper-btn btn-minus" data-s-idx="${slotIdx}" data-p-idx="${pIdx}">−</button>
+                  <input type="number" min="0" max="99" class="scanner-res-kill-input" value="${Number(p.kills) || 0}" data-s-idx="${slotIdx}" data-p-idx="${pIdx}" title="Player Kills" />
+                  <button type="button" class="scanner-kills-stepper-btn btn-plus" data-s-idx="${slotIdx}" data-p-idx="${pIdx}">+</button>
                 </div>
               </div>
-            </div>
-          ` : ''}
+            `).join('')}
+            ${(slot.players || []).length === 0 ? `<div class="scanner-res-no-players">No roster players in Slot ${res.slot}. Add players in Slot ${res.slot} above.</div>` : ''}
+          </div>
         `;
 
-        // Expand / Collapse toggle
-        card.querySelector('.scanner-btn-expand-slot')?.addEventListener('click', () => {
-          if (expandedSlotCards.has(slotIdx)) {
-            expandedSlotCards.delete(slotIdx);
-          } else {
-            expandedSlotCards.add(slotIdx);
-          }
-          this.render12SlotsList();
+        // Rank / Placement input change
+        card.querySelector('.scanner-res-rank-input')?.addEventListener('change', (e) => {
+          this.updatePlacement(slotIdx, e.target.value);
         });
 
-        // Team Name input change
-        card.querySelector('.team-name-inp')?.addEventListener('change', (e) => {
-          this.updateTeamName(slotIdx, e.target.value);
+        // Stepper Minus button
+        card.querySelectorAll('.btn-minus').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const sIdx = parseInt(btn.dataset.sIdx, 10);
+            const pIdx = parseInt(btn.dataset.pIdx, 10);
+            const cur = Number(slots[sIdx]?.players[pIdx]?.kills) || 0;
+            this.updatePlayerKill(sIdx, pIdx, Math.max(0, cur - 1));
+          });
         });
 
-        // Player Name input changes
-        card.querySelectorAll('.player-name-inp').forEach((inp) => {
+        // Stepper Plus button
+        card.querySelectorAll('.btn-plus').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const sIdx = parseInt(btn.dataset.sIdx, 10);
+            const pIdx = parseInt(btn.dataset.pIdx, 10);
+            const cur = Number(slots[sIdx]?.players[pIdx]?.kills) || 0;
+            this.updatePlayerKill(sIdx, pIdx, cur + 1);
+          });
+        });
+
+        // Numeric kill input change
+        card.querySelectorAll('.scanner-res-kill-input').forEach((inp) => {
           inp.addEventListener('change', (e) => {
+            const sIdx = parseInt(e.target.dataset.sIdx, 10);
             const pIdx = parseInt(e.target.dataset.pIdx, 10);
-            this.updatePlayerName(slotIdx, pIdx, e.target.value);
+            this.updatePlayerKill(sIdx, pIdx, e.target.value);
           });
-        });
-
-        // Player Kills input changes
-        card.querySelectorAll('.player-kills-inp').forEach((inp) => {
-          inp.addEventListener('change', (e) => {
-            const pIdx = parseInt(e.target.dataset.pIdx, 10);
-            this.updatePlayerKill(slotIdx, pIdx, e.target.value);
-          });
-        });
-
-        // Move Player select
-        card.querySelectorAll('.player-move-sel').forEach((sel) => {
-          sel.addEventListener('change', (e) => {
-            const pIdx = parseInt(e.target.dataset.pIdx, 10);
-            const targetSlotIdx = parseInt(e.target.value, 10);
-            if (!isNaN(targetSlotIdx)) {
-              this.movePlayer(slotIdx, pIdx, targetSlotIdx);
-            }
-          });
-        });
-
-        // Remove Player button
-        card.querySelectorAll('.player-del-btn').forEach((btn) => {
-          btn.addEventListener('click', (e) => {
-            const pIdx = parseInt(e.target.dataset.pIdx, 10);
-            this.removePlayer(slotIdx, pIdx);
-          });
-        });
-
-        // Add Player button
-        card.querySelector('.scanner-btn-add-p')?.addEventListener('click', () => {
-          this.addPlayer(slotIdx);
-        });
-
-        // Retry Slot button
-        card.querySelector('.scanner-btn-retry-slot')?.addEventListener('click', () => {
-          this.retrySlot(slotIdx);
-        });
-
-        // Recalculate Slot button
-        card.querySelector('.scanner-btn-recalc-slot')?.addEventListener('click', () => {
-          this.recalculateTeam(slotIdx);
-          this.render();
-          if (window.showToast) window.showToast(`Recalculated Slot ${slot.slot} kills: ${results[slotIdx]?.totalKills || 0}`);
-        });
-
-        // Clear Slot button
-        card.querySelector('.scanner-btn-clear-slot')?.addEventListener('click', () => {
-          this.clearSlot(slotIdx);
-        });
-
-        // Toggle Active button
-        card.querySelector('.scanner-btn-toggle-active')?.addEventListener('click', () => {
-          this.toggleSlotActive(slotIdx);
         });
 
         container.appendChild(card);
       });
     },
 
+    updateResultCardKillsDisplay(slotIdx) {
+      const res = results[slotIdx];
+      const slot = slots[slotIdx];
+      if (!res) return;
+
+      const badge = document.getElementById(`scanner-res-totalkills-${slotIdx}`);
+      if (badge) {
+        badge.textContent = `${res.totalKills} Kills`;
+      }
+
+      const totalKillsBadge = document.getElementById('scanner-results-total-kills-badge');
+      if (totalKillsBadge) {
+        const sumKills = results.reduce((sum, r) => sum + (Number(r.totalKills) || 0), 0);
+        totalKillsBadge.textContent = `${sumKills} Total Kills`;
+      }
+
+      // Also sync numeric inputs inside that slot card without full re-render
+      const card = document.getElementById(`scanner-res-card-${slotIdx}`);
+      if (card && slot) {
+        const killInputs = card.querySelectorAll('.scanner-res-kill-input');
+        slot.players.forEach((p, pIdx) => {
+          if (killInputs[pIdx]) {
+            killInputs[pIdx].value = Number(p.kills) || 0;
+          }
+        });
+      }
+    },
+
+    // Diagnostics Banner (suppresses "No Lobby Roster Confirmed" when usable roster exists)
     renderDiagnostics(diagnostics = []) {
       const container = document.getElementById('scanner-diagnostics-container');
       if (!container) return;
       container.innerHTML = '';
-      if (!diagnostics || diagnostics.length === 0) {
+
+      const hasUsableRoster = Array.isArray(slots) && slots.some((s) => s.players && s.players.length > 0 && !s.isCleared);
+      const filtered = (diagnostics || []).filter((d) => !(d.type === 'no_lobby_roster' && hasUsableRoster));
+
+      if (filtered.length === 0) {
         container.style.display = 'none';
         return;
       }
+
       container.style.display = 'flex';
       container.style.flexDirection = 'column';
       container.style.gap = '8px';
       container.style.marginBottom = '12px';
 
-      diagnostics.forEach((diag) => {
+      filtered.forEach((diag) => {
         const item = document.createElement('div');
         const borderColor = diag.severity === 'error' ? 'rgba(239, 68, 68, 0.4)' : diag.severity === 'warning' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(168, 85, 247, 0.4)';
         const bg = diag.severity === 'error' ? 'rgba(239, 68, 68, 0.1)' : diag.severity === 'warning' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(168, 85, 247, 0.1)';
@@ -1730,14 +1667,13 @@
       });
     },
 
-    render12ResultsList() {
-      this.renderCompactTeamResults();
-      this.renderPlayerKillsPanel();
+    // Backward compatibility delegates
+    render12SlotsList() {
+      this.render12LobbySlots();
     },
 
-    updateResultCardKillsDisplay(slotIdx) {
-      this.renderCompactTeamResults();
-      this.renderPlayerKillsPanel(slotIdx);
+    render12ResultsList() {
+      this.render12ResultSlots();
     },
 
     renderStandingsPreview() {

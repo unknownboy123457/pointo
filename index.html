@@ -717,19 +717,30 @@
         <div id="scanner-warnings-container"></div>
         <div id="scanner-diagnostics-container" style="display: none;"></div>
 
-        <!-- ===== CARD 1: LOBBY SCREENSHOTS ===== -->
+        <!-- ===== CARD 1: LOBBY SLOT LIST (12 SLOTS) ===== -->
         <div class="scanner-card" id="scanner-card-lobby">
           <div class="scanner-card-header">
             <div class="scanner-card-badge">1</div>
             <div class="scanner-card-title-group">
-              <h2 class="scanner-card-title">Lobby Screenshots</h2>
-              <p class="scanner-card-instruction">Make sure the screenshot is taken when <strong>all players are alive</strong> for the best accuracy</p>
+              <h2 class="scanner-card-title">Lobby Slot List (12 Slots)</h2>
+              <p class="scanner-card-instruction">Make sure each slot contains its player names. Edit, add, or remove players manually.</p>
             </div>
           </div>
 
           <!-- Horizontal Previews of Lobby Screenshots -->
           <div class="scanner-previews-scroll" id="scanner-lobby-previews">
             <!-- Dynamically populated or default preview items -->
+          </div>
+
+          <!-- Section Subtitle for 12 Lobby Slots -->
+          <div class="scanner-section-subtitle">
+            <span>Lobby Slots (Slots 1–12)</span>
+            <span class="scanner-pcount-badge" id="scanner-lobby-total-players-badge">12 Slots</span>
+          </div>
+
+          <!-- Exactly 12 Lobby Slots Grid -->
+          <div class="scanner-12slots-compact-grid" id="scanner-lobby-12slots-container">
+            <!-- Dynamically populated exactly 12 lobby slot cards (Slot 1 to Slot 12) -->
           </div>
         </div>
 
@@ -751,13 +762,13 @@
           <button type="button" class="scanner-slotlist-btn" id="scanner-btn-manage-roster">Manage</button>
         </div>
 
-        <!-- ===== CARD 2: RESULT SCREENSHOTS ===== -->
+        <!-- ===== CARD 2: END RESULTS (12 SLOTS) ===== -->
         <div class="scanner-card" id="scanner-card-results">
           <div class="scanner-card-header">
             <div class="scanner-card-badge">2</div>
             <div class="scanner-card-title-group">
-              <h2 class="scanner-card-title">Result Screenshots</h2>
-              <p class="scanner-card-instruction">Make sure the screenshot is taken without any overlays, and confirm that the kill count is accurate.</p>
+              <h2 class="scanner-card-title">End Results (12 Slots)</h2>
+              <p class="scanner-card-instruction">Match players against the lobby roster. Edit individual kills and placements directly inside each result slot.</p>
             </div>
           </div>
 
@@ -766,56 +777,25 @@
             <!-- Dynamically populated or default preview items -->
           </div>
 
-          <!-- Compact Team Result Rows matching reference screenshot (07, 7. TEAM FLUG, 19) -->
-          <div class="scanner-compact-team-results" id="scanner-compact-team-results">
-            <!-- Dynamically populated compact rows -->
-          </div>
-
-          <!-- "Enter player kills" action pill button -->
-          <button type="button" class="scanner-enter-kills-btn" id="scanner-btn-enter-kills">
-            <span class="scanner-pencil-circle">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-            </span>
-            <span>Enter player kills</span>
-          </button>
-
-          <!-- Expandable inline player kills editor panel -->
-          <div class="scanner-player-kills-panel" id="scanner-player-kills-panel" style="display: none;">
-            <!-- Rendered dynamically -->
-          </div>
-        </div>
-
-        <!-- ===== CARD 3: 12-SLOT ROSTER REVIEW & EDIT ===== -->
-        <div class="scanner-card" id="scanner-card-12slots">
-          <div class="scanner-card-header">
-            <div class="scanner-card-badge">3</div>
-            <div class="scanner-card-title-group">
-              <h2 class="scanner-card-title">12 Slot Review &amp; Edit</h2>
-              <p class="scanner-card-instruction">Compact review of all 12 tournament slots. Tap any slot to expand and modify players.</p>
-            </div>
-          </div>
-
-          <!-- Quick Slot Navigation Jump Bar (Slots 01 to 12) -->
-          <div class="scanner-slot-jump-bar-wrap">
-            <div class="scanner-slot-jump-label">Slots:</div>
-            <div class="scanner-slot-jump-bar" id="scanner-slot-jump-bar">
-              <!-- Dynamically populated 12 slot jump chips -->
-            </div>
-          </div>
-
-          <!-- Unassigned Players Section -->
+          <!-- Unassigned / Unmatched Players Section (only shown when unmatched players exist) -->
           <div class="scanner-unassigned-section" id="scanner-unassigned-section" style="display: none;">
             <div class="scanner-unassigned-header">
-              <span class="scanner-warning-pill">Unassigned Players</span>
+              <span class="scanner-warning-pill">Unmatched Players</span>
               <span class="scanner-unassigned-count" id="scanner-unassigned-count">0 players</span>
             </div>
-            <p class="scanner-unassigned-desc">These players were detected without a determined slot. Select a slot to assign them.</p>
+            <p class="scanner-unassigned-desc">Select a slot to assign unmatched players and calculate team kills:</p>
             <div class="scanner-unassigned-list" id="scanner-unassigned-list"></div>
           </div>
 
-          <!-- 12 Slot Cards (1-column on mobile, 2-column on desktop) -->
-          <div class="scanner-12slots-compact-grid" id="scanner-12slots-container">
-            <!-- Dynamically populated 12 compact slot cards -->
+          <!-- Section Subtitle for 12 End Result Slots -->
+          <div class="scanner-section-subtitle">
+            <span>Result Slots (Slots 1–12)</span>
+            <span class="scanner-pcount-badge" id="scanner-results-total-kills-badge">0 Total Kills</span>
+          </div>
+
+          <!-- Exactly 12 End Result Slots Grid -->
+          <div class="scanner-12slots-compact-grid" id="scanner-results-12slots-container">
+            <!-- Dynamically populated exactly 12 result slot cards (Slot 1 to Slot 12) -->
           </div>
         </div>
 

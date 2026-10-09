@@ -1041,6 +1041,24 @@
           matched = true;
         }
 
+        // 4b-2. Normalized fuzzy matching across all lobby slots
+        if (!matched) {
+          for (let sIdx = 0; sIdx < slots.length; sIdx++) {
+            const slot = slots[sIdx];
+            const pIdx = (slot.players || []).findIndex((p) => this.matchPlayerName(p.name, res.name));
+            if (pIdx !== -1) {
+              const player = slot.players[pIdx];
+              player.kills = Number(res.kills) || 0;
+              player.verificationStatus = 'verified';
+              if (res.rank && !slotResults[sIdx].placement) {
+                slotResults[sIdx].placement = res.rank;
+              }
+              matched = true;
+              break;
+            }
+          }
+        }
+
         // 4c. Secondary match: team name itself
         if (!matched) {
           for (let i = 0; i < slots.length; i++) {
@@ -1191,7 +1209,13 @@
             slotObj.source = file.name || `Screen ${sIdx + 1}`;
             slotObj.status = 'verified';
 
-            if (Array.isArray(item.players)) {
+            if (Array.isArray(item.players) && item.players.length > 0) {
+              // If slot had default placeholder players, clear them so only real detected players are stored
+              const hasOnlyPlaceholders = slotObj.players.length > 0 && slotObj.players.every((pl) => /^Player\s+\d+[A-D]$/i.test(pl.name));
+              if (hasOnlyPlaceholders) {
+                slotObj.players = [];
+              }
+
               item.players.forEach((p) => {
                 const pName = typeof p === 'string' ? p.trim() : (p.name || '').trim();
                 if (pName && !slotObj.players.some((existingP) => this.matchPlayerName(existingP.name, pName))) {

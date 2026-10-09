@@ -92,53 +92,39 @@ async function run() {
   });
 
   console.log('Navigating to app with autoGuest=1 and screen=ai-scanner...');
-  await sendSession('Page.navigate', { url: 'http://localhost:5500/?autoGuest=1&screen=ai-scanner' });
-  await new Promise(r => setTimeout(r, 2000));
+  await sendSession('Page.navigate', { url: 'http://127.0.0.1:5500/?autoGuest=1&screen=ai-scanner' });
+  await new Promise(r => setTimeout(r, 2500));
 
-  // 1. Mobile Top: Header + Card 1
-  console.log('Capturing 01_mobile_top.png...');
-  await sendSession('Runtime.evaluate', {
-    expression: `document.querySelector('.scanner-scroll-wrap').scrollTop = 0;`
-  });
-  await new Promise(r => setTimeout(r, 400));
+  // 1. Mobile Card 1: Lobby Slots (12 Slots)
+  console.log('Capturing 01_mobile_card1_lobby_12slots.png...');
   const shot1 = await sendSession('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(path.join(ARTIFACTS_DIR, '01_mobile_top.png'), Buffer.from(shot1.data, 'base64'));
+  fs.writeFileSync(path.join(ARTIFACTS_DIR, '01_mobile_card1_lobby_12slots.png'), Buffer.from(shot1.data, 'base64'));
 
-  // 2. Mobile Card 2: Result Screenshots + Compact team rows + Enter player kills
-  console.log('Capturing 02_mobile_card2_results.png...');
+  // 2. Mobile Card 2: End Results (12 Slots)
+  console.log('Capturing 02_mobile_card2_results_12slots.png...');
   await sendSession('Runtime.evaluate', {
     expression: `
       const el = document.getElementById('scanner-card-results');
-      if (el) document.querySelector('.scanner-scroll-wrap').scrollTop = el.offsetTop - 10;
+      const wrap = document.querySelector('.scanner-scroll-wrap');
+      if (el && wrap) wrap.scrollTop = el.offsetTop - 10;
     `
   });
-  await new Promise(r => setTimeout(r, 400));
+  await new Promise(r => setTimeout(r, 600));
   const shot2 = await sendSession('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(path.join(ARTIFACTS_DIR, '02_mobile_card2_results.png'), Buffer.from(shot2.data, 'base64'));
+  fs.writeFileSync(path.join(ARTIFACTS_DIR, '02_mobile_card2_results_12slots.png'), Buffer.from(shot2.data, 'base64'));
 
-  // 3. Mobile Card 3: 12-Slot Review & Edit (compact cards)
-  console.log('Capturing 03_mobile_12slots_review.png...');
+  // 3. Mobile Card 4: Match Points Preview table
+  console.log('Capturing 03_mobile_standings_preview.png...');
   await sendSession('Runtime.evaluate', {
     expression: `
-      const el = document.getElementById('scanner-card-12slots');
-      if (el) document.querySelector('.scanner-scroll-wrap').scrollTop = el.offsetTop - 10;
+      const el = document.getElementById('scanner-card-standings');
+      const wrap = document.querySelector('.scanner-scroll-wrap');
+      if (el && wrap) wrap.scrollTop = el.offsetTop - 10;
     `
   });
-  await new Promise(r => setTimeout(r, 400));
+  await new Promise(r => setTimeout(r, 600));
   const shot3 = await sendSession('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(path.join(ARTIFACTS_DIR, '03_mobile_12slots_review.png'), Buffer.from(shot3.data, 'base64'));
-
-  // 4. Mobile Slot 1 Expanded with edit controls
-  console.log('Capturing 04_mobile_slot_expanded.png...');
-  await sendSession('Runtime.evaluate', {
-    expression: `
-      const btn = document.querySelector('.scanner-btn-expand-slot');
-      btn?.click();
-    `
-  });
-  await new Promise(r => setTimeout(r, 400));
-  const shot4 = await sendSession('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(path.join(ARTIFACTS_DIR, '04_mobile_slot_expanded.png'), Buffer.from(shot4.data, 'base64'));
+  fs.writeFileSync(path.join(ARTIFACTS_DIR, '03_mobile_standings_preview.png'), Buffer.from(shot3.data, 'base64'));
 
   // Set Desktop Viewport: 1440 x 900
   console.log('Setting viewport to 1440x900 (Desktop)...');
@@ -149,26 +135,17 @@ async function run() {
     mobile: false
   });
 
-  // 5. Desktop Top (Centered layout)
-  console.log('Capturing 05_desktop_top.png...');
-  await sendSession('Runtime.evaluate', {
-    expression: `document.querySelector('.scanner-scroll-wrap').scrollTop = 0;`
-  });
-  await new Promise(r => setTimeout(r, 500));
-  const shot5 = await sendSession('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(path.join(ARTIFACTS_DIR, '05_desktop_top.png'), Buffer.from(shot5.data, 'base64'));
-
-  // 6. Desktop 12-slots Grid (2-column layout)
-  console.log('Capturing 06_desktop_12slots_grid.png...');
+  // 4. Desktop Card 1 & Card 2
+  console.log('Capturing 04_desktop_12slots.png...');
   await sendSession('Runtime.evaluate', {
     expression: `
-      const el = document.getElementById('scanner-card-12slots');
-      if (el) document.querySelector('.scanner-scroll-wrap').scrollTop = el.offsetTop - 10;
+      const wrap = document.querySelector('.scanner-scroll-wrap');
+      if (wrap) wrap.scrollTop = 0;
     `
   });
-  await new Promise(r => setTimeout(r, 500));
-  const shot6 = await sendSession('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(path.join(ARTIFACTS_DIR, '06_desktop_12slots_grid.png'), Buffer.from(shot6.data, 'base64'));
+  await new Promise(r => setTimeout(r, 600));
+  const shot4 = await sendSession('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync(path.join(ARTIFACTS_DIR, '04_desktop_12slots.png'), Buffer.from(shot4.data, 'base64'));
 
   ws.close();
   edge.kill();
