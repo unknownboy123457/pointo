@@ -386,52 +386,125 @@
     },
 
     /**
-     * Parse rich lobby roster text including individual player names
+     * Normalize player name for deterministic comparison:
+     * - Trims surrounding whitespace
+     * - Lowercases
+     * - Removes zero-width Unicode characters
+     * - Collapses internal whitespace
      */
-    parseLobbyRosterText(rawText) {
+    normalizePlayerName(name) {
+      if (!name || typeof name !== 'string') return '';
+      return name
+        .trim()
+        .toLowerCase()
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/\s+/g, ' ');
+    },
+
+    /**
+     * Compare two player names with harmless OCR tolerance
+     */
+    matchPlayerName(nameA, nameB) {
+      const normA = this.normalizePlayerName(nameA);
+      const normB = this.normalizePlayerName(nameB);
+      if (!normA || !normB) return false;
+      if (normA === normB) return true;
+      // Secondary check: trim non-alphanumeric noise at boundaries (e.g. OCR bracket or dot)
+      const cleanA = normA.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+      const cleanB = normB.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+      if (cleanA && cleanB && cleanA === cleanB) return true;
+      return false;
+    },
+
+    /**
+     * Parse rich lobby roster text including individual player names
+     * Supports:
+     * 1. Free Fire lobby column grid (Slot number on line, followed by player names)
+     * 2. Inline brackets: "Slot 1: Team Name [P1, P2, P3, P4]"
+     * 3. Dashed lines: "1. Team Name - P1, P2, P3, P4"
+     * 4. Bulleted player rows under slot header
+     * 5. Table / pipe format: "1 | Team Name | P1 | P2 | P3 | P4"
+     * Preserves punctuation, underscores, dots, and special characters.
+     */
+    parseLobbyRosterText(rawText, sourceInfo = 'Lobby Screenshot') {
       if (!rawText || typeof rawText !== 'string') return [];
       const lines = rawText.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
       const slots = [];
       let currentSlot = null;
 
-      const slotRegex = /^(?:slot|s|#)?\s*(\d{1,2})\s*[:.)-]?\s*(.+)$/i;
+      // Slot indicator regex: "Slot 1: Team Name", "Slot 01", "#1 Team", "1. Team", "1 - Team", or standalone "1" / "Slot 1"
+      const slotHeaderRegex = /^(?:slot|s|#)?\s*(\d{1,2})\s*(?:[:.)-]\s*(.*)|$)/i;
 
-      for (const line of lines) {
-        // Check if line starts a new slot
-        const match = line.match(slotRegex);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(slotHeaderRegex);
+
+        // Check if line starts a slot definition (1 to 48)
         if (match && parseInt(match[1], 10) > 0 && parseInt(match[1], 10) <= 48) {
           const slotNum = parseInt(match[1], 10);
-          const rest = match[2].trim();
+          const rest = (match[2] || '').trim();
 
-          // Check if players are inline like "Team Name [P1, P2, P3, P4]" or "Team Name - P1, P2"
-          let teamName = rest;
+          let teamName = `Team ${slotNum}`;
           let inlinePlayers = [];
 
-          const bracketMatch = rest.match(/^(.+?)\s*\[(.*?)\]$/);
-          if (bracketMatch) {
-            teamName = bracketMatch[1].trim();
-            inlinePlayers = bracketMatch[2].split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
-          } else if (rest.includes(' - ')) {
-            const parts = rest.split(' - ');
-            teamName = parts[0].trim();
-            inlinePlayers = parts[1].split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
+          if (rest) {
+            const bracketMatch = rest.match(/^(.+?)\s*\[(.*?)\]$/);
+            if (bracketMatch) {
+              teamName = bracketMatch[1].trim();
+              inlinePlayers = bracketMatch[2].split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
+            } else if (rest.includes(' - ')) {
+              const parts = rest.split(' - ');
+              teamName = parts[0].trim();
+              inlinePlayers = parts[1].split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
+            } else if (rest.includes('|')) {
+              const parts = rest.split('|').map((p) => p.trim()).filter(Boolean);
+              teamName = parts[0] || `Team ${slotNum}`;
+              inlinePlayers = parts.slice(1);
+            } else {
+              teamName = rest;
+            }
           }
 
           currentSlot = {
             slot: slotNum,
             teamName: teamName || `Team ${slotNum}`,
-            players: inlinePlayers.map((p) => ({ name: p, kills: 0 })),
+            players: inlinePlayers.map((p) => ({
+              id: 'p_' + Math.random().toString(36).substr(2, 6),
+              name: p,
+              slot: slotNum,
+              teamName: teamName || `Team ${slotNum}`,
+              kills: 0,
+              confidence: 0.9,
+              source: sourceInfo,
+              region: `Slot ${slotNum}`,
+              verificationStatus: 'verified',
+            })),
+            source: sourceInfo,
             confidence: 0.85,
+            status: 'verified',
           };
           slots.push(currentSlot);
         } else if (currentSlot) {
-          // Additional player lines under current slot (e.g. indented or bulleted)
+          // Additional player lines under current slot (indented, bulleted, or plain names)
           const cleaned = line.replace(/^[-*•>]\s*/, '').trim();
-          if (cleaned && !cleaned.toLowerCase().startsWith('slot')) {
-            const parts = cleaned.split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
+          if (cleaned && !/^(?:slot|match|roster|lobby|room)\b/i.test(cleaned)) {
+            const parts = cleaned.includes(',') || cleaned.includes(';')
+              ? cleaned.split(/[,;]+/).map((p) => p.trim()).filter(Boolean)
+              : [cleaned];
+
             parts.forEach((pName) => {
-              if (pName && !currentSlot.players.some((p) => p.name.toLowerCase() === pName.toLowerCase())) {
-                currentSlot.players.push({ name: pName, kills: 0 });
+              if (pName && !currentSlot.players.some((p) => this.matchPlayerName(p.name, pName))) {
+                currentSlot.players.push({
+                  id: 'p_' + Math.random().toString(36).substr(2, 6),
+                  name: pName,
+                  slot: currentSlot.slot,
+                  teamName: currentSlot.teamName,
+                  kills: 0,
+                  confidence: 0.85,
+                  source: sourceInfo,
+                  region: `Slot ${currentSlot.slot}`,
+                  verificationStatus: 'verified',
+                });
               }
             });
           }
@@ -444,6 +517,8 @@
         return standard.map((s) => ({
           ...s,
           players: [],
+          status: 'verified',
+          confidence: s.confidence || 0.75,
         }));
       }
 
@@ -451,46 +526,109 @@
     },
 
     /**
-     * Parse end-game result screenshot text for player names, kills, and ranks
+     * Parse end-game result screenshot text for player names, kills, eliminations, and ranks
+     * Specifically handles:
+     * - Free Fire in-game scoreboard: "AYUSHMAN_ 7 Eliminations"
+     * - "#1 Mafia - 6 Kills" / "Rank 1 Total Gaming 12 kills"
+     * - Visible rank headers: "#7 7. TEAM FLUG"
+     * - "Player (4)" / "Player : 5 kills"
+     * Preserves underscores, punctuation, dots, and special characters.
      */
-    parseMatchResultsText(rawText) {
+    parseMatchResultsText(rawText, sourceInfo = 'Result Screenshot') {
       if (!rawText || typeof rawText !== 'string') return [];
       const lines = rawText.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
       const extracted = [];
+      let currentRank = null;
 
-      // Patterns matching:
-      // "1. Mafia - 4 Kills"
-      // "#1 Mafia (4)"
-      // "Rank 1 Total Gaming 12 kills"
-      // "PlayerName 4 kills"
-      const resultPatterns = [
-        /^(?:#|rank\s*)?(\d{1,2})\s*[:.)-]?\s+(.+?)\s+[-—:]?\s*(\d{1,2})\s*(?:kills?|k|pts)?$/i,
-        /^(.+?)\s+[-—:]\s*(\d{1,2})\s*(?:kills?|k)$/i,
-        /^(\d{1,2})\s+([a-zA-Z0-9_\s]{2,20})\s+(\d{1,2})$/,
-      ];
+      const ignoreRegex = /^(match|results?|scoreboard|summary|booyah!?|kills?|placement|eliminations?|alive|survival)/i;
+      const rankHeaderRegex = /^(?:#|rank\s*)?(\d{1,2})\s*[:.)-]?\s*(?:(?:team|slot)?\s*.+)?$/i;
 
       for (const line of lines) {
-        // Skip header lines
-        if (/^(match|results|scoreboard|kills|placement|booyah)/i.test(line)) continue;
+        // Skip pure headers without digits
+        if (ignoreRegex.test(line) && !/\d/.test(line)) continue;
 
-        let matched = false;
-        for (const pattern of resultPatterns) {
-          const m = line.match(pattern);
-          if (m) {
-            if (m.length === 4) {
-              const rank = parseInt(m[1], 10);
-              const name = m[2].trim();
-              const kills = parseInt(m[3], 10);
-              extracted.push({ rank, name, kills, confidence: 0.85 });
-              matched = true;
-              break;
-            } else if (m.length === 3) {
-              const name = m[1].trim();
-              const kills = parseInt(m[2], 10);
-              extracted.push({ rank: null, name, kills, confidence: 0.8 });
-              matched = true;
-              break;
-            }
+        // Check if line sets rank context (e.g. "#7 7. TEAM FLUG" or "Rank 2")
+        if (!/(?:kills?|elim|pts|\b\d{1,2}\s*$)/i.test(line)) {
+          const rm = line.match(rankHeaderRegex);
+          if (rm && parseInt(rm[1], 10) >= 1 && parseInt(rm[1], 10) <= 48) {
+            currentRank = parseInt(rm[1], 10);
+            continue;
+          }
+        }
+
+        // Pattern 1: Rank + Name + Kills/Elims, e.g. "#1 Mafia - 6 Kills", "Rank 1 Total Gaming 12 kills", "#7 AYUSHMAN_ 7 Eliminations"
+        const p1 = line.match(/^(?:#|rank\s*)?(\d{1,2})\s*[:.)-]?\s+(.+?)\s+[-—:x]?\s*(\d{1,2})\s*(?:eliminations?|elims?|elim|kills?|k|pts)?$/i);
+        if (p1 && p1[2] && p1[3] !== undefined) {
+          const rank = parseInt(p1[1], 10);
+          const name = p1[2].trim();
+          const kills = parseInt(p1[3], 10);
+          if (name.length > 0 && !isNaN(kills)) {
+            extracted.push({
+              rank,
+              name,
+              kills,
+              confidence: 0.9,
+              source: sourceInfo,
+              region: `Rank ${rank}`,
+            });
+            currentRank = rank;
+            continue;
+          }
+        }
+
+        // Pattern 2: Name + Eliminations/Kills, e.g. "AYUSHMAN_ 7 Eliminations", "11X MAF!YA 1 Eliminations", "Player - 4 kills"
+        const p2 = line.match(/^(.+?)\s+[-—:x]?\s*(\d{1,2})\s*(?:eliminations?|elims?|elim|kills?|k)$/i);
+        if (p2 && p2[1] && p2[2] !== undefined) {
+          const name = p2[1].trim();
+          const kills = parseInt(p2[2], 10);
+          if (name.length > 0 && !isNaN(kills)) {
+            extracted.push({
+              rank: currentRank,
+              name,
+              kills,
+              confidence: 0.88,
+              source: sourceInfo,
+              region: currentRank ? `Rank ${currentRank}` : 'Scoreboard',
+            });
+            continue;
+          }
+        }
+
+        // Pattern 3: Name with parentheses count, e.g. "Mafia (6)", "Player (4 kills)"
+        const p3 = line.match(/^(.+?)\s*\(\s*(\d{1,2})\s*(?:eliminations?|elims?|elim|kills?|k)?\s*\)$/i);
+        if (p3 && p3[1] && p3[2] !== undefined) {
+          const name = p3[1].trim();
+          const kills = parseInt(p3[2], 10);
+          if (name.length > 0 && !isNaN(kills)) {
+            extracted.push({
+              rank: currentRank,
+              name,
+              kills,
+              confidence: 0.85,
+              source: sourceInfo,
+              region: currentRank ? `Rank ${currentRank}` : 'Scoreboard',
+            });
+            continue;
+          }
+        }
+
+        // Pattern 4: Generic Digit + Name + Digit, e.g. "1 Mafia 6"
+        const p4 = line.match(/^(\d{1,2})\s+([a-zA-Z0-9_.!#\s-]{2,30})\s+(\d{1,2})$/);
+        if (p4 && p4[2] && p4[3] !== undefined) {
+          const rank = parseInt(p4[1], 10);
+          const name = p4[2].trim();
+          const kills = parseInt(p4[3], 10);
+          if (name.length > 0 && !isNaN(kills)) {
+            extracted.push({
+              rank,
+              name,
+              kills,
+              confidence: 0.8,
+              source: sourceInfo,
+              region: `Rank ${rank}`,
+            });
+            currentRank = rank;
+            continue;
           }
         }
       }
@@ -500,10 +638,10 @@
 
     /**
      * Merge lobby roster with multiple result screenshots
-     * - Associates extracted players with teams from the lobby roster
+     * - Lobby roster is the single source of truth for slot assignments
+     * - Normalizes letter case and harmless spacing
      * - Aggregates individual player kills into team totals
      * - Prevents duplicate player count across overlapping screenshots
-     * - Assigns placements and flags warnings for manual review
      */
     mergeScreenshots(lobbySlots = [], resultScreenshotsData = []) {
       const warnings = [];
@@ -526,24 +664,23 @@
       resultScreenshotsData.forEach((screenData, screenIdx) => {
         const entries = Array.isArray(screenData) ? screenData : (screenData.entries || []);
         entries.forEach((entry) => {
-          const normName = entry.name.toLowerCase().trim();
+          const normName = this.normalizePlayerName(entry.name);
           if (seenPlayers.has(normName)) {
             // Already counted from previous screenshot (overlapping screenshot handling)
             return;
           }
           seenPlayers.add(normName);
-          allExtracted.push({ ...entry, screenIndex: screenIdx });
+          allExtracted.push({ ...entry, normName, screenIndex: screenIdx });
         });
       });
 
-      // Match extracted entries to teams in roster
+      // Match extracted entries to teams in roster using deterministic lookup
       allExtracted.forEach((ext) => {
-        const extName = ext.name.toLowerCase().trim();
         let matched = false;
 
-        // 1. Try matching with registered team players
+        // 1. Try matching with registered team players using normalized matching
         for (const team of teams) {
-          const pIndex = team.players.findIndex((p) => p.name.toLowerCase().trim() === extName);
+          const pIndex = team.players.findIndex((p) => this.matchPlayerName(p.name, ext.name));
           if (pIndex !== -1) {
             team.players[pIndex].kills = ext.kills;
             if (ext.rank && !team.placement) {
@@ -557,12 +694,10 @@
         // 2. Try matching with team name itself
         if (!matched) {
           for (const team of teams) {
-            if (team.teamName.toLowerCase().trim() === extName) {
+            if (this.matchPlayerName(team.teamName, ext.name)) {
               if (team.players.length === 0) {
-                // Team-level kill assignment
                 team.teamKillsOverride = ext.kills;
               } else {
-                // Add as new player or distribute
                 team.players.push({ name: `${ext.name} (Player)`, kills: ext.kills });
               }
               if (ext.rank && !team.placement) team.placement = ext.rank;
@@ -572,7 +707,7 @@
           }
         }
 
-        // 3. Unmatched player: add warning and assign to closest slot or unassigned
+        // 3. Unmatched player: add warning
         if (!matched) {
           warnings.push(`Player "${ext.name}" (${ext.kills} kills) could not be matched to any lobby team.`);
         }
@@ -699,10 +834,302 @@
     },
 
     /**
-     * Complete 12-slot extraction pipeline supporting multi-screenshot upload
-     * Outputs exact 12 slots, unassigned players, and match end results
+     * Diagnose current roster and matching state distinguishing the 6 core scenarios:
+     * 1. No lobby roster exists
+     * 2. Missing players in a roster
+     * 3. Unmatched players in end screenshots
+     * 4. Ambiguous players (duplicate in multiple slots)
+     * 5. Empty slots
+     * 6. Unreadable screenshots
      */
-    async extract12SlotsAndResults({ slotListFiles = [], endResultFiles = [], existingSlots = [] }, onProgress) {
+    diagnoseRosterState({ slots = [], unmatchedPlayers = [], failedScreenshots = [], warnings = [] } = {}) {
+      const issues = [];
+
+      // 1. No lobby roster exists
+      const totalPlayers = slots.reduce((sum, s) => sum + (s.players || []).length, 0);
+      if (totalPlayers === 0) {
+        issues.push({
+          type: 'no_lobby_roster',
+          severity: 'warning',
+          title: 'No Lobby Roster Confirmed',
+          message: 'No players are currently assigned to the 12 slots. You can load a saved slot list, enter player names manually below, or upload a lobby screenshot.',
+        });
+      }
+
+      // 2. Unmatched players found in end screenshots
+      if (unmatchedPlayers.length > 0) {
+        issues.push({
+          type: 'unmatched_players',
+          severity: 'warning',
+          title: `${unmatchedPlayers.length} Unmatched Player${unmatchedPlayers.length > 1 ? 's' : ''}`,
+          message: `${unmatchedPlayers.length} player(s) found in match results were not matched to the lobby roster. Use "Assign to Slot" to place them.`,
+          unmatchedCount: unmatchedPlayers.length,
+          unmatched: unmatchedPlayers,
+        });
+      }
+
+      // 3. Ambiguous players (duplicate player name across multiple slots)
+      const playerSlotMap = new Map();
+      const ambiguous = [];
+      slots.forEach((s) => {
+        (s.players || []).forEach((p) => {
+          const norm = this.normalizePlayerName(p.name);
+          if (norm) {
+            if (playerSlotMap.has(norm)) {
+              ambiguous.push({ name: p.name, slots: [playerSlotMap.get(norm), s.slot] });
+            } else {
+              playerSlotMap.set(norm, s.slot);
+            }
+          }
+        });
+      });
+      if (ambiguous.length > 0) {
+        issues.push({
+          type: 'ambiguous_players',
+          severity: 'warning',
+          title: 'Duplicate Player in Multiple Slots',
+          message: ambiguous.map((a) => `"${a.name}" is listed in Slot ${a.slots.join(' and Slot ')}. Please verify.`).join(' '),
+          ambiguous,
+        });
+      }
+
+      // 4. Missing players in a roster (teams with fewer than 4 players)
+      const shortSlots = slots.filter((s) => s.players && s.players.length > 0 && s.players.length < 4);
+      if (shortSlots.length > 0) {
+        issues.push({
+          type: 'missing_players',
+          severity: 'info',
+          title: 'Variable Team Sizes Detected',
+          message: `${shortSlots.length} team(s) have fewer than 4 players (Slots: ${shortSlots.map((s) => s.slot).join(', ')}). Variable team sizes are supported.`,
+          shortSlots: shortSlots.map((s) => s.slot),
+        });
+      }
+
+      // 5. Empty slots
+      const emptySlots = slots.filter((s) => !s.players || s.players.length === 0);
+      if (emptySlots.length > 0 && totalPlayers > 0) {
+        issues.push({
+          type: 'empty_slots',
+          severity: 'info',
+          title: `${emptySlots.length} Empty Slot${emptySlots.length > 1 ? 's' : ''}`,
+          message: `Slot(s) ${emptySlots.map((s) => s.slot).join(', ')} have no players assigned. Empty slots are permitted and will not block match calculations.`,
+          emptySlots: emptySlots.map((s) => s.slot),
+        });
+      }
+
+      // 6. Unreadable screenshots
+      if (failedScreenshots.length > 0) {
+        issues.push({
+          type: 'unreadable_screenshot',
+          severity: 'error',
+          title: 'Unreadable Screenshot',
+          message: failedScreenshots.map((f) => `Screenshot "${f.name || f}" could not be read. Valid screenshots and slots were preserved.`).join(' '),
+          failedScreenshots,
+        });
+      }
+
+      return issues;
+    },
+
+    /**
+     * Organize extracted results into 12 logical slot groups:
+     * - Uses confirmed lobby roster as the deterministic source of truth
+     * - Normalizes letter case and surrounding whitespace
+     * - Deduplicates overlapping screenshots without double-counting kills
+     * - Separates unmatched players for manual organizer assignment
+     * - Aggregates individual kills into team totals
+     */
+    organizeResultsInto12Slots({ slots = [], extractedResults = [], manualAssignments = new Map() } = {}) {
+      const warnings = [];
+      const unmatchedPlayers = [];
+
+      // 1. Build deterministic player-to-slot lookup from confirmed lobby roster
+      const playerToSlotMap = new Map();
+      slots.forEach((s, sIdx) => {
+        (s.players || []).forEach((p, pIdx) => {
+          const norm = this.normalizePlayerName(p.name);
+          if (norm) {
+            if (!playerToSlotMap.has(norm)) {
+              playerToSlotMap.set(norm, { slotIdx: sIdx, pIdx, playerObj: p, slotNum: s.slot });
+            }
+          }
+        });
+      });
+
+      // 2. Deduplicate overlapping end-game results
+      const seenResultNames = new Set();
+      const uniqueResults = [];
+      extractedResults.forEach((ext) => {
+        const norm = this.normalizePlayerName(ext.name);
+        if (norm) {
+          if (!seenResultNames.has(norm)) {
+            seenResultNames.add(norm);
+            uniqueResults.push({ ...ext, norm });
+          }
+        }
+      });
+
+      // 3. Initialize 12 slot result records
+      const slotResults = slots.map((s) => ({
+        slot: s.slot,
+        teamName: s.teamName,
+        placement: null,
+        teamKillsOverride: null,
+        totalKills: 0,
+        matchedPlayers: [],
+        isExcluded: false,
+        source: s.source || 'Lobby Roster',
+        warnings: [],
+        status: (s.players && s.players.length > 0) ? 'verified' : 'empty',
+      }));
+
+      // Reset individual player kills before applying matched results
+      slots.forEach((s) => {
+        (s.players || []).forEach((p) => {
+          p.kills = 0;
+          p.verificationStatus = 'verified';
+        });
+      });
+
+      // 4. Distribute results deterministically
+      uniqueResults.forEach((res) => {
+        const norm = res.norm;
+        let matched = false;
+
+        // 4a. Check confirmed manual assignment first
+        if (manualAssignments && manualAssignments.has(norm)) {
+          const targetSlotNum = manualAssignments.get(norm);
+          const targetIdx = slots.findIndex((s) => s.slot === targetSlotNum);
+          if (targetIdx !== -1) {
+            const slot = slots[targetIdx];
+            let p = slot.players.find((pl) => this.matchPlayerName(pl.name, res.name));
+            if (!p) {
+              p = {
+                id: 'p_' + Math.random().toString(36).substr(2, 6),
+                name: res.name,
+                slot: targetSlotNum,
+                teamName: slot.teamName,
+                kills: Number(res.kills) || 0,
+                confidence: 1.0,
+                source: res.source || 'Manual Assignment',
+                region: `Slot ${targetSlotNum}`,
+                verificationStatus: 'verified',
+              };
+              slot.players.push(p);
+            } else {
+              p.kills = Number(res.kills) || 0;
+              p.verificationStatus = 'verified';
+            }
+            if (res.rank && !slotResults[targetIdx].placement) {
+              slotResults[targetIdx].placement = res.rank;
+            }
+            matched = true;
+          }
+        }
+
+        // 4b. Match against confirmed lobby roster
+        if (!matched && playerToSlotMap.has(norm)) {
+          const matchInfo = playerToSlotMap.get(norm);
+          const targetSlot = slots[matchInfo.slotIdx];
+          const player = targetSlot.players[matchInfo.pIdx];
+          player.kills = Number(res.kills) || 0;
+          player.verificationStatus = 'verified';
+
+          if (res.rank && !slotResults[matchInfo.slotIdx].placement) {
+            slotResults[matchInfo.slotIdx].placement = res.rank;
+          }
+          matched = true;
+        }
+
+        // 4c. Secondary match: team name itself
+        if (!matched) {
+          for (let i = 0; i < slots.length; i++) {
+            if (this.matchPlayerName(slots[i].teamName, res.name)) {
+              if (slots[i].players.length === 0) {
+                slotResults[i].teamKillsOverride = Number(res.kills) || 0;
+              } else {
+                slots[i].players.push({
+                  id: 'p_' + Math.random().toString(36).substr(2, 6),
+                  name: `${res.name} (Player)`,
+                  slot: slots[i].slot,
+                  teamName: slots[i].teamName,
+                  kills: Number(res.kills) || 0,
+                  confidence: 0.85,
+                  source: res.source,
+                  region: `Slot ${slots[i].slot}`,
+                  verificationStatus: 'verified',
+                });
+              }
+              if (res.rank && !slotResults[i].placement) {
+                slotResults[i].placement = res.rank;
+              }
+              matched = true;
+              break;
+            }
+          }
+        }
+
+        // 4d. Unmatched player: isolate in Unmatched section
+        if (!matched) {
+          unmatchedPlayers.push({
+            id: 'un_' + Math.random().toString(36).substr(2, 6),
+            name: res.name,
+            kills: Number(res.kills) || 0,
+            rank: res.rank || null,
+            source: res.sourceFile || res.source || 'Result Screenshot',
+            status: 'unmatched',
+            reason: 'Not found in confirmed lobby roster',
+          });
+          warnings.push(`Result for "${res.name}" (${res.kills} kills${res.rank ? ', Rank #' + res.rank : ''}) could not be matched to any slot.`);
+        }
+      });
+
+      // 5. Aggregate team total kills for each slot
+      slotResults.forEach((sr, idx) => {
+        const slot = slots[idx];
+        sr.matchedPlayers = (slot.players || []).map((p) => ({
+          name: p.name,
+          kills: Number(p.kills) || 0,
+          status: p.verificationStatus || 'verified',
+        }));
+
+        if (sr.teamKillsOverride !== null) {
+          sr.totalKills = Number(sr.teamKillsOverride) || 0;
+        } else {
+          sr.totalKills = (slot.players || []).reduce((sum, p) => sum + (Number(p.kills) || 0), 0);
+        }
+      });
+
+      // 6. Check duplicate placements
+      const placementCount = new Map();
+      slotResults.forEach((sr) => {
+        if (sr.placement) {
+          placementCount.set(sr.placement, (placementCount.get(sr.placement) || 0) + 1);
+        }
+      });
+      slotResults.forEach((sr) => {
+        if (sr.placement && placementCount.get(sr.placement) > 1) {
+          sr.warnings.push(`Duplicate placement #${sr.placement}`);
+          warnings.push(`Duplicate placement: Multiple teams placed at #${sr.placement}. Please review.`);
+        }
+      });
+
+      return {
+        slotResults,
+        unmatchedPlayers,
+        warnings,
+      };
+    },
+
+    /**
+     * Complete 12-slot extraction pipeline supporting multi-screenshot upload
+     * - Organizes lobby into exactly 12 logical slot records
+     * - Processes end screenshots into 12 slot groups
+     * - Uses lobby roster as deterministic source of truth
+     * - Retains manual assignments across runs
+     * - Distinguishes error and review states cleanly
+     */
+    async extract12SlotsAndResults({ slotListFiles = [], endResultFiles = [], existingSlots = [], confirmedManualAssignments = new Map() }, onProgress) {
       const progress = (pct, msg) => {
         if (typeof onProgress === 'function') onProgress(pct, msg);
       };
@@ -724,8 +1151,7 @@
         });
       }
 
-      const unassignedPlayers = [];
-      const warnings = [];
+      const failedScreenshots = [];
 
       // 2. Process all slot list files
       for (let sIdx = 0; sIdx < slotListFiles.length; sIdx++) {
@@ -737,19 +1163,23 @@
         try {
           const res = await this.extractSlotList(file);
           if (res.rawText) {
-            extractedRoster = this.parseLobbyRosterText(res.rawText);
+            extractedRoster = this.parseLobbyRosterText(res.rawText, file.name);
           } else if (res.entries && res.entries.length > 0) {
             extractedRoster = res.entries.map((e) => ({
               slot: e.slot,
               teamName: e.teamName,
-              players: [],
+              players: e.players || [],
             }));
+          }
+          if (!res.success && (!res.entries || res.entries.length === 0) && !res.rawText) {
+            failedScreenshots.push(file);
           }
         } catch (e) {
           console.warn('Slot list extraction error:', e);
+          failedScreenshots.push(file);
         }
 
-        // Merge extracted roster into 12 slots
+        // Merge extracted roster into 12 slots by slot number
         extractedRoster.forEach((item) => {
           if (item.slot >= 1 && item.slot <= 12) {
             const slotObj = slots[item.slot - 1];
@@ -764,57 +1194,27 @@
             if (Array.isArray(item.players)) {
               item.players.forEach((p) => {
                 const pName = typeof p === 'string' ? p.trim() : (p.name || '').trim();
-                if (pName && !slotObj.players.some((existingP) => existingP.name.toLowerCase() === pName.toLowerCase())) {
+                if (pName && !slotObj.players.some((existingP) => this.matchPlayerName(existingP.name, pName))) {
                   slotObj.players.push({
                     id: 'p_' + Math.random().toString(36).substr(2, 6),
                     name: pName,
+                    slot: slotObj.slot,
+                    teamName: slotObj.teamName,
                     kills: 0,
+                    confidence: p.confidence || 0.9,
+                    source: file.name || 'Lobby Screenshot',
+                    region: `Slot ${slotObj.slot}`,
+                    verificationStatus: 'verified',
                   });
                 }
-              });
-            }
-          } else {
-            // Player/team without valid 1-12 slot number -> Unassigned
-            if (Array.isArray(item.players) && item.players.length > 0) {
-              item.players.forEach((p) => {
-                const pName = typeof p === 'string' ? p : p.name;
-                unassignedPlayers.push({
-                  id: 'un_' + Math.random().toString(36).substr(2, 6),
-                  name: pName,
-                  source: file.name,
-                  kills: 0,
-                });
-              });
-            } else if (item.teamName) {
-              unassignedPlayers.push({
-                id: 'un_' + Math.random().toString(36).substr(2, 6),
-                name: item.teamName,
-                source: file.name,
-                kills: 0,
               });
             }
           }
         });
       }
 
-      // Check duplicate player names across slots
-      const seenPlayerSlotMap = new Map();
-      slots.forEach((s) => {
-        s.players.forEach((p) => {
-          const norm = p.name.toLowerCase().trim();
-          if (seenPlayerSlotMap.has(norm)) {
-            warnings.push(`Potential duplicate player "${p.name}" found in Slot ${seenPlayerSlotMap.get(norm)} and Slot ${s.slot}.`);
-            s.status = 'review';
-          } else {
-            seenPlayerSlotMap.set(norm, s.slot);
-          }
-        });
-      });
-
       // 3. Process all end result files
-      const seenResultNames = new Set();
       const extractedResults = [];
-
       for (let rIdx = 0; rIdx < endResultFiles.length; rIdx++) {
         const file = endResultFiles[rIdx];
         if (!file) continue;
@@ -824,105 +1224,56 @@
         try {
           const res = await this.extractSlotList(file);
           if (res.rawText) {
-            matchResults = this.parseMatchResultsText(res.rawText);
+            matchResults = this.parseMatchResultsText(res.rawText, file.name);
           } else if (res.entries) {
             matchResults = res.entries.map((e) => ({ name: e.teamName, kills: 0, rank: e.slot }));
           }
+          if (!res.success && (!res.entries || res.entries.length === 0) && !res.rawText) {
+            failedScreenshots.push(file);
+          }
         } catch (e) {
           console.warn('Result extraction error:', e);
+          failedScreenshots.push(file);
         }
 
-        // Deduplicate across overlapping screenshots
         matchResults.forEach((entry) => {
-          const norm = (entry.name || '').toLowerCase().trim();
-          if (norm && !seenResultNames.has(norm)) {
-            seenResultNames.add(norm);
-            extractedResults.push({ ...entry, sourceFile: file.name });
-          }
+          extractedResults.push({ ...entry, sourceFile: file.name });
         });
       }
 
-      // 4. Distribute results to the 12 slots using the lobby roster
-      const slotResults = slots.map((s) => ({
-        slot: s.slot,
-        teamName: s.teamName,
-        placement: null,
-        teamKillsOverride: null,
-        totalKills: 0,
-        isExcluded: false,
-        source: s.source,
-        warnings: [],
-      }));
+      // 4. Organize results into 12 slot groups using deterministic lobby roster lookup
+      const organization = this.organizeResultsInto12Slots({
+        slots,
+        extractedResults,
+        manualAssignments: confirmedManualAssignments,
+      });
 
-      extractedResults.forEach((res) => {
-        const resNorm = res.name.toLowerCase().trim();
-        let matched = false;
+      const slotResults = organization.slotResults;
+      const unassignedPlayers = organization.unmatchedPlayers;
+      const warnings = [...organization.warnings];
 
-        // Try matching with team players
-        for (let i = 0; i < slots.length; i++) {
-          const slot = slots[i];
-          const pIdx = slot.players.findIndex((p) => p.name.toLowerCase().trim() === resNorm);
-          if (pIdx !== -1) {
-            slot.players[pIdx].kills = Number(res.kills) || 0;
-            if (res.rank && !slotResults[i].placement) {
-              slotResults[i].placement = res.rank;
-            }
-            matched = true;
-            break;
-          }
-        }
-
-        // Try matching with team name
-        if (!matched) {
-          for (let i = 0; i < slots.length; i++) {
-            const slot = slots[i];
-            if (slot.teamName.toLowerCase().trim() === resNorm) {
-              if (slot.players.length === 0) {
-                slotResults[i].teamKillsOverride = Number(res.kills) || 0;
-              } else {
-                slot.players.push({
-                  id: 'p_' + Math.random().toString(36).substr(2, 6),
-                  name: `${res.name} (Player)`,
-                  kills: Number(res.kills) || 0,
-                });
-              }
-              if (res.rank && !slotResults[i].placement) {
-                slotResults[i].placement = res.rank;
-              }
-              matched = true;
-              break;
+      // Check duplicate player names across slots and flag warnings
+      const seenPlayerSlotMap = new Map();
+      slots.forEach((s) => {
+        (s.players || []).forEach((p) => {
+          const norm = this.normalizePlayerName(p.name);
+          if (norm) {
+            if (seenPlayerSlotMap.has(norm)) {
+              warnings.unshift(`Potential duplicate player "${p.name}" found in Slot ${seenPlayerSlotMap.get(norm)} and Slot ${s.slot}.`);
+              s.status = 'review';
+            } else {
+              seenPlayerSlotMap.set(norm, s.slot);
             }
           }
-        }
-
-        // If unmatched, add warning
-        if (!matched) {
-          warnings.push(`Result for "${res.name}" (${res.kills} kills${res.rank ? ', Rank #' + res.rank : ''}) could not be matched to any slot.`);
-        }
+        });
       });
 
-      // 5. Calculate total team kills for each slot
-      slotResults.forEach((sr, idx) => {
-        const slot = slots[idx];
-        if (sr.teamKillsOverride !== null) {
-          sr.totalKills = Number(sr.teamKillsOverride) || 0;
-        } else {
-          sr.totalKills = slot.players.reduce((sum, p) => sum + (Number(p.kills) || 0), 0);
-        }
-      });
-
-      // 6. Check duplicate placements
-      const placementCount = new Map();
-      slotResults.forEach((sr) => {
-        if (sr.placement) {
-          placementCount.set(sr.placement, (placementCount.get(sr.placement) || 0) + 1);
-        }
-      });
-      slotResults.forEach((sr) => {
-        if (sr.placement && placementCount.get(sr.placement) > 1) {
-          sr.warnings.push(`Duplicate placement #${sr.placement}`);
-          warnings.push(`Duplicate placement: Multiple teams placed at #${sr.placement}. Please review.`);
-        }
+      // 5. Diagnose roster and match state
+      const diagnostics = this.diagnoseRosterState({
+        slots,
+        unmatchedPlayers: unassignedPlayers,
+        failedScreenshots,
+        warnings,
       });
 
       progress(100, 'Analysis complete!');
@@ -930,9 +1281,11 @@
       return {
         success: true,
         slots,
+        endSlots: slotResults,
         unassignedPlayers,
         results: slotResults,
         warnings,
+        diagnostics,
       };
     },
 

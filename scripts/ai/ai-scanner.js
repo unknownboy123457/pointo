@@ -41,6 +41,12 @@
   const expandedSlotCards = new Set();
   const expandedResultCards = new Set();
 
+  // Confirmed manual player-to-slot assignments that persist across re-extractions
+  let confirmedManualAssignments = new Map();
+
+  // Current diagnostic issues
+  let currentDiagnostics = [];
+
   // History stack for undo
   const historyStack = [];
 
@@ -554,9 +560,9 @@
       try {
         updateProgress(15, 'Validating and categorizing screenshots...');
 
-        // Run multi-screenshot extraction pipeline
+        // Run multi-screenshot extraction pipeline with confirmed manual assignments
         const outcome = await window.AIService.extract12SlotsAndResults(
-          { slotListFiles, endResultFiles, existingSlots: slots },
+          { slotListFiles, endResultFiles, existingSlots: slots, confirmedManualAssignments },
           updateProgress
         );
 
@@ -564,8 +570,10 @@
           slots = outcome.slots;
           unassignedPlayers = outcome.unassignedPlayers || [];
           results = outcome.results;
+          currentDiagnostics = outcome.diagnostics || [];
 
-          // Render warnings
+          // Render diagnostics and warnings
+          this.renderDiagnostics(currentDiagnostics);
           this.renderWarnings(outcome.warnings || []);
 
           // Recalculate
@@ -641,7 +649,13 @@
 
       pushHistory();
       slots[fromSlotIdx].players.splice(playerIdx, 1);
+      player.slot = slots[toSlotIdx].slot;
+      player.teamName = slots[toSlotIdx].teamName;
       slots[toSlotIdx].players.push(player);
+
+      if (window.AIService && player.name) {
+        confirmedManualAssignments.set(window.AIService.normalizePlayerName(player.name), slots[toSlotIdx].slot);
+      }
 
       this.recalculateTeam(fromSlotIdx);
       this.recalculateTeam(toSlotIdx);
@@ -681,16 +695,56 @@
 
       pushHistory();
       const p = unassignedPlayers.splice(idx, 1)[0];
+      const targetSlotNum = slots[targetSlotIdx].slot;
+
+      // Store confirmed manual assignment
+      if (window.AIService && p.name) {
+        confirmedManualAssignments.set(window.AIService.normalizePlayerName(p.name), targetSlotNum);
+      }
+
       slots[targetSlotIdx].players.push({
         id: p.id,
         name: p.name,
+        slot: targetSlotNum,
+        teamName: slots[targetSlotIdx].teamName,
         kills: Number(p.kills) || 0,
+        source: 'Manual Assignment',
+        confidence: 1.0,
+        verificationStatus: 'verified',
       });
 
       this.recalculateTeam(targetSlotIdx);
       this.render();
       if (window.showToast) {
-        window.showToast(`Assigned "${p.name}" to Slot ${slots[targetSlotIdx].slot}`);
+        window.showToast(`Assigned "${p.name}" to Slot ${targetSlotNum}`);
+      }
+    },
+
+    retrySlot(slotIdx) {
+      if (!slots[slotIdx]) return;
+      pushHistory();
+      const slot = slots[slotIdx];
+      slot.status = 'verified';
+      if (results[slotIdx]) {
+        results[slotIdx].warnings = [];
+      }
+      this.recalculateTeam(slotIdx);
+      this.render();
+      if (window.showToast) {
+        window.showToast(`Retried Slot ${slot.slot}. Data verified.`);
+      }
+    },
+
+    reviewUnmatchedPlayers() {
+      const section = document.getElementById('scanner-unassigned-section');
+      if (section) {
+        section.style.display = 'block';
+        section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        section.classList.add('pulse-highlight');
+        setTimeout(() => section.classList.remove('pulse-highlight'), 1800);
+      }
+      if (window.showToast) {
+        window.showToast(`${unassignedPlayers.length} unmatched player(s) available for manual slot assignment.`);
       }
     },
 
@@ -1509,8 +1563,10 @@
               <span class="scanner-compact-team-title">${escapeHtml(slot.teamName)}</span>
             </div>
             <div class="scanner-compact-header-right">
+              ${res && res.placement ? `<span class="scanner-placement-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(234, 179, 8, 0.2); color: #fbbf24; border-radius: 999px; font-weight: 700;">#${res.placement}</span>` : ''}
               <span class="scanner-pcount-badge">${pCount}P</span>
               ${res ? `<span class="scanner-ref-kills-pill" style="font-size: 11px; padding: 2px 8px;">${res.totalKills}K</span>` : ''}
+              ${(slot.status === 'review' || (res && res.warnings && res.warnings.length > 0)) ? `<span class="scanner-review-dot" title="Needs review" style="color: #f59e0b; font-size: 11px;">⚠️</span>` : ''}
             </div>
           </div>
 
@@ -1548,7 +1604,9 @@
 
               <div class="scanner-slot-actions-bar">
                 <button type="button" class="scanner-btn-add-p" data-slot-idx="${slotIdx}">+ Add Player</button>
-                <div style="display: flex; gap: 6px;">
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <button type="button" class="scanner-btn-retry-slot" data-slot-idx="${slotIdx}">Retry Slot</button>
+                  <button type="button" class="scanner-btn-recalc-slot" data-slot-idx="${slotIdx}">Recalculate</button>
                   <button type="button" class="scanner-btn-clear-slot" data-slot-idx="${slotIdx}">Clear Slot</button>
                   <button type="button" class="scanner-btn-toggle-active" data-slot-idx="${slotIdx}">
                     ${slot.isActive ? 'Mark Inactive' : 'Restore Slot'}
@@ -1614,6 +1672,18 @@
           this.addPlayer(slotIdx);
         });
 
+        // Retry Slot button
+        card.querySelector('.scanner-btn-retry-slot')?.addEventListener('click', () => {
+          this.retrySlot(slotIdx);
+        });
+
+        // Recalculate Slot button
+        card.querySelector('.scanner-btn-recalc-slot')?.addEventListener('click', () => {
+          this.recalculateTeam(slotIdx);
+          this.render();
+          if (window.showToast) window.showToast(`Recalculated Slot ${slot.slot} kills: ${results[slotIdx]?.totalKills || 0}`);
+        });
+
         // Clear Slot button
         card.querySelector('.scanner-btn-clear-slot')?.addEventListener('click', () => {
           this.clearSlot(slotIdx);
@@ -1625,6 +1695,38 @@
         });
 
         container.appendChild(card);
+      });
+    },
+
+    renderDiagnostics(diagnostics = []) {
+      const container = document.getElementById('scanner-diagnostics-container');
+      if (!container) return;
+      container.innerHTML = '';
+      if (!diagnostics || diagnostics.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '8px';
+      container.style.marginBottom = '12px';
+
+      diagnostics.forEach((diag) => {
+        const item = document.createElement('div');
+        const borderColor = diag.severity === 'error' ? 'rgba(239, 68, 68, 0.4)' : diag.severity === 'warning' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(168, 85, 247, 0.4)';
+        const bg = diag.severity === 'error' ? 'rgba(239, 68, 68, 0.1)' : diag.severity === 'warning' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(168, 85, 247, 0.1)';
+        const titleColor = diag.severity === 'error' ? '#fca5a5' : diag.severity === 'warning' ? '#fcd34d' : '#d8b4fe';
+        const icon = diag.severity === 'error' ? '⚠️' : diag.severity === 'warning' ? '⚡' : 'ℹ️';
+
+        item.style.cssText = `border: 1px solid ${borderColor}; background: ${bg}; border-radius: 12px; padding: 10px 14px; display: flex; gap: 10px; align-items: flex-start;`;
+        item.innerHTML = `
+          <span style="font-size: 16px; line-height: 1.2;">${icon}</span>
+          <div style="flex: 1;">
+            <div style="font-size: 12px; font-weight: 700; color: ${titleColor}; margin-bottom: 2px;">${escapeHtml(diag.title)}</div>
+            <div style="font-size: 11px; color: #cbd5e1; line-height: 1.4;">${escapeHtml(diag.message)}</div>
+          </div>
+        `;
+        container.appendChild(item);
       });
     },
 
@@ -1777,6 +1879,20 @@
     },
     getMode() {
       return currentMode;
+    },
+    getManualAssignments() {
+      return confirmedManualAssignments;
+    },
+    setManualAssignment(playerName, slotNum) {
+      if (window.AIService && playerName) {
+        confirmedManualAssignments.set(window.AIService.normalizePlayerName(playerName), Number(slotNum));
+      }
+    },
+    clearManualAssignments() {
+      confirmedManualAssignments.clear();
+    },
+    getDiagnostics() {
+      return currentDiagnostics;
     },
   };
 
