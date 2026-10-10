@@ -25,10 +25,11 @@
   // ================================================================
   // CONFIGURATION
   // ================================================================
+  const isBrowserHttp = typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:');
   const AI_CONFIG = {
     // Backend proxy endpoint for real AI extraction
-    // Developer must configure this to point to their AI backend
-    backendEndpoint: window.ENV?.AI_ENDPOINT || null,
+    // Defaults to server-side endpoint /api/ai/extract when served over HTTP
+    backendEndpoint: (window.ENV && window.ENV.AI_ENDPOINT !== undefined) ? window.ENV.AI_ENDPOINT : (isBrowserHttp ? '/api/ai/extract' : null),
 
     // Maximum file size in bytes (10MB)
     maxFileSize: 10 * 1024 * 1024,
@@ -250,43 +251,70 @@
   async function extractWithBackendAI(imageFile) {
     const startTime = performance.now();
 
-    const formData = new FormData();
-    formData.append('image', imageFile);
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), AI_CONFIG.timeout);
 
     try {
+      let bodyData;
+      let headers = {};
+
+      if (typeof FileReader !== 'undefined') {
+        const base64Data = await fileToBase64(imageFile);
+        headers['Content-Type'] = 'application/json';
+        bodyData = JSON.stringify({
+          image: base64Data,
+          filename: imageFile.name,
+          mimeType: imageFile.type,
+          fileSize: imageFile.size,
+        });
+      } else {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        bodyData = formData;
+      }
+
       const response = await fetch(AI_CONFIG.backendEndpoint, {
         method: 'POST',
-        body: formData,
+        headers,
+        body: bodyData,
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
+      const data = await response.json().catch(() => null);
+
       if (!response.ok) {
-        throw new Error(`AI service returned ${response.status}: ${response.statusText}`);
+        const errorMsg = (data && data.error) || `AI service returned ${response.status}: ${response.statusText}`;
+        throw new Error(errorMsg);
       }
 
-      const data = await response.json();
+      if (!data) {
+        throw new Error('Invalid empty response from AI service');
+      }
+
       const processingTime = Math.round(performance.now() - startTime);
 
-      // Validate response schema
-      if (!data || !Array.isArray(data.entries)) {
-        throw new Error('Invalid response from AI service');
-      }
-
       return {
-        success: data.entries.length > 0,
-        entries: data.entries.map((e) => ({
-          slot: Number(e.slot) || 0,
-          teamName: String(e.teamName || '').trim(),
-          confidence: Number(e.confidence) || 0.9,
-        })),
+        success: data.success !== false && ((Array.isArray(data.entries) && data.entries.length > 0) || Boolean(data.rawText)),
+        category: data.category || 'unknown',
+        entries: Array.isArray(data.entries)
+          ? data.entries.map((e) => ({
+              slot: Number(e.slot) || Number(e.rank) || 0,
+              rank: Number(e.rank) || Number(e.slot) || 0,
+              teamName: String(e.teamName || '').trim(),
+              player: e.player || null,
+              players: Array.isArray(e.players) ? e.players : [],
+              kills: typeof e.kills === 'number' ? e.kills : 0,
+              confidence: Number(e.confidence) || 0.9,
+            }))
+          : [],
+        rawText: data.rawText || null,
+        confidence: Number(data.confidence) || 0.9,
+        unreadableFields: Array.isArray(data.unreadableFields) ? data.unreadableFields : [],
         method: 'ai',
         processingTime,
-        error: data.entries.length === 0 ? 'AI could not detect slot entries in the image.' : null,
+        error: data.error || null,
       };
     } catch (err) {
       clearTimeout(timeoutId);
@@ -413,6 +441,10 @@
       const cleanA = normA.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
       const cleanB = normB.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
       if (cleanA && cleanB && cleanA === cleanB) return true;
+      // Tertiary check: ignore internal dots, underscores, dashes, and exclamation marks (e.g. V.A.S.I vs VASI)
+      const stripA = cleanA.replace(/[._\-!#\s]/g, '');
+      const stripB = cleanB.replace(/[._\-!#\s]/g, '');
+      if (stripA && stripB && stripA === stripB) return true;
       return false;
     },
 
@@ -433,7 +465,7 @@
       let currentSlot = null;
 
       // Slot indicator regex: "Slot 1: Team Name", "Slot 01", "#1 Team", "1. Team", "1 - Team", or standalone "1" / "Slot 1"
-      const slotHeaderRegex = /^(?:slot|s|#)?\s*(\d{1,2})\s*(?:[:.)-]\s*(.*)|$)/i;
+      const slotHeaderRegex = /^(?:slot|s|#)?\s*(\d{1,2})\s*(?:[:.)-]\s*|\s+|$)(.*)$/i;
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -456,6 +488,10 @@
               const parts = rest.split(' - ');
               teamName = parts[0].trim();
               inlinePlayers = parts[1].split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
+            } else if (rest.includes(': ') || (rest.includes(':') && !rest.startsWith('http'))) {
+              const parts = rest.split(/:\s*/);
+              teamName = parts[0].trim();
+              inlinePlayers = parts.slice(1).join(':').split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
             } else if (rest.includes('|')) {
               const parts = rest.split('|').map((p) => p.trim()).filter(Boolean);
               teamName = parts[0] || `Team ${slotNum}`;
@@ -925,6 +961,20 @@
           title: 'Unreadable Screenshot',
           message: failedScreenshots.map((f) => `Screenshot "${f.name || f}" could not be read. Valid screenshots and slots were preserved.`).join(' '),
           failedScreenshots,
+        });
+      }
+
+      // 7. Duplicate placements and explicit warnings
+      if (Array.isArray(warnings)) {
+        warnings.forEach((w) => {
+          if (typeof w === 'string' && w.toLowerCase().includes('duplicate placement')) {
+            issues.push({
+              type: 'duplicate_placement',
+              severity: 'warning',
+              title: 'Duplicate Placement Detected',
+              message: w,
+            });
+          }
         });
       }
 
